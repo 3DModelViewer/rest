@@ -1,12 +1,14 @@
 package rest
 
 import (
-	"github.com/modelhub/core"
-	"github.com/modelhub/session"
-	"net/http"
-	"github.com/robsix/golog"
 	"encoding/json"
 	"errors"
+	"github.com/modelhub/core"
+	"github.com/modelhub/session"
+	"github.com/robsix/golog"
+	"net/http"
+	"strings"
+	"path/filepath"
 	"io"
 )
 
@@ -68,15 +70,15 @@ func handlerWrapper(coreApi core.CoreApi, getSession session.SessionGetter, hand
 			writeError(w, errors.New("no session found"), log)
 		} else if forUser, err := session.User(); err != nil {
 			writeError(w, err, log)
-		}else if forUser == "" {
+		} else if forUser == "" {
 			writeError(w, errors.New("no valid user id in session"), log)
-		} else if err := handler(coreApi, session, w, r, log); err != nil {
+		} else if err := handler(coreApi, forUser, session, w, r, log); err != nil {
 			writeError(w, err, log)
 		}
 	}
 }
 
-type handler func(core.CoreApi, session.Session, http.ResponseWriter, *http.Request, golog.Log) error
+type handler func(core.CoreApi, forUser string, session.Session, http.ResponseWriter, *http.Request, golog.Log) error
 
 func writeJson(w http.ResponseWriter, src interface{}, log golog.Log) {
 	if b, err := json.Marshal(src); err != nil {
@@ -85,6 +87,19 @@ func writeJson(w http.ResponseWriter, src interface{}, log golog.Log) {
 		w.Header().Add("Content-Type", "application/json")
 		w.Write(b)
 	}
+}
+
+func writeOffsetJson(w http.ResponseWriter, res interface{}, totalResults int, log golog.Log) {
+	if res == nil {
+		res = []interface{}{}
+	}
+	writeJson(w, &struct{
+		TotalResults int `json:"totalResults"`
+		Results int `json:"results"`
+	}{
+		TotalResults: totalResults,
+		Results: res,
+	}, log)
 }
 
 func readJson(r *http.Request, dst interface{}) error {
@@ -98,15 +113,15 @@ func readJson(r *http.Request, dst interface{}) error {
 func writeError(w http.ResponseWriter, err error, log golog.Log) {
 	le := log.Error("RestApi error: %v", err)
 	w.WriteHeader(500)
-	w.Write("unexpected error, id: "+le.LogId)
+	w.Write("unexpected error, id: " + le.LogId)
 }
 
 //END Util
 
 //START Handlers
 
-func userGetCurrent(coreApi core.CoreApi, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	if res, err := coreApi.User().Get(session.User()); err != nil {
+func userGetCurrent(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	if res, err := coreApi.User().Get(forUser); err != nil {
 		return err
 	} else {
 		writeJson(w, res, log)
@@ -114,22 +129,22 @@ func userGetCurrent(coreApi core.CoreApi, session session.Session, w http.Respon
 	}
 }
 
-func userSetProperty(coreApi core.CoreApi, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+func userSetProperty(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		Property string `json:"property"`
-		Value string `json:"value"`
+		Value    string `json:"value"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if err := coreApi.User().SetProperty(session.User(), args.Property, ); err != nil {
+	} else if err := coreApi.User().SetProperty(forUser, args.Property); err != nil {
 		return err
 	} else {
 		return nil
 	}
 }
 
-func userGet(coreApi core.CoreApi, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	args := &struct{
+func userGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
 		Ids []string `json:"ids"`
 	}{}
 	if err := readJson(r, args); err != nil {
@@ -138,6 +153,515 @@ func userGet(coreApi core.CoreApi, session session.Session, w http.ResponseWrite
 		return err
 	} else {
 		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func userGetInProjectContext(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Project string `json:"project"`
+		Role    string `json:"role"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.User().GetInProjectContext(forUser, args.Project, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func userGetInProjectInviteContext(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Project string `json:"project"`
+		Role    string `json:"role"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.User().GetInProjectInviteContext(forUser, args.Project, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func userSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Search string `json:"search"`
+		Role    string `json:"role"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.User().Search(args.Search, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func projectCreate(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	file, header, err := r.FormFile("file")
+	if file != nil {
+		defer file.Close()
+	}
+	fileName := ""
+	if header != nil {
+		fileName = header.Filename
+	}
+	if err != nil && err != http.ErrMissingFile {
+		return err
+	}
+	if res, err := coreApi.Project().Create(forUser, r.FormValue("name"), r.FormValue("description"), fileName, file); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func projectSetName(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+		Name    string `json:"name"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.Project().SetName(forUser, args.Id, args.Name); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func projectSetDescription(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+		Description    string `json:"description"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.Project().SetDescription(forUser, args.Id, args.Description); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func projectSetImage(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	file, header, err := r.FormFile("file")
+	if file != nil {
+		defer file.Close()
+	}
+	fileName := ""
+	if header != nil {
+		fileName = header.Filename
+	}
+	if err != nil {
+		return err
+	}
+	if err := coreApi.Project().SetImage(forUser, r.FormValue("id"), fileName, file); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func projectAddUsers(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+		Role    string `json:"role"`
+		Users    []string `json:"users"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.Project().AddUsers(forUser, args.Id, args.Role, args.Users); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func projectRemoveUsers(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+		Users    []string `json:"users"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.Project().RemoveUsers(forUser, args.Id, args.Users); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func projectAcceptInvite(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.Project().AcceptInvite(forUser, args.Id); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func projectDeclineInvite(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.Project().DeclineInvite(forUser, args.Id); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func projectGetImage(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	pathSegments := strings.Split(r.URL.Path, "/")
+	id := pathSegments[len(pathSegments)-1]
+	ext := filepath.Ext(id)
+	id = strings.Split(id, ".")[0]
+	var res *http.Response
+	var err error
+	if res, err = coreApi.Project().GetImage(forUser, id); res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
+	if err != nil {
+		return err
+	} else if _, err := io.Copy(w, res.Body); err != nil {
+		return  err
+	} else {
+		w.Header().Add("Content-Type", "image/"+ext)
+		return nil
+	}
+}
+
+func projectGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Ids []string `json:"ids"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.Project().Get(forUser, args.Ids); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func projectGetInUserContext(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		User string `json:"user"`
+		Role    string `json:"role"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Project().GetInUserContext(forUser, args.User, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func projectGetInUserInviteContext(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		User string `json:"user"`
+		Role    string `json:"role"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Project().GetInUserInviteContext(forUser, args.User, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func projectSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Search string `json:"search"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Project().GetInUserInviteContext(forUser, args.Search, args.Offset, args.Limit, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func treeNodeCreateFolder(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Parent string `json:"parent"`
+		Name  string    `json:"name"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.TreeNode().CreateFolder(forUser, args.Parent, args.Name); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func treeNodeCreateDocument(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	file, header, err := r.FormFile("file")
+	if file != nil {
+		defer file.Close()
+	}
+	fileName := ""
+	if header != nil {
+		fileName = header.Filename
+	}
+	if err != nil {
+		return err
+	}
+	if res, err := coreApi.TreeNode().CreateDocument(forUser, r.FormValue("parent"), r.FormValue("name"), r.FormValue("uploadComment"), fileName, file); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func treeNodeSetName(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+		Name  string    `json:"name"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.TreeNode().SetName(forUser, args.Id, args.Name); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func treeNodeMove(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Parent string `json:"parent"`
+		Ids  []string    `json:"ids"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.TreeNode().Move(forUser, args.Parent, args.Ids); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func treeNodeGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Ids  []string    `json:"ids"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.TreeNode().Get(forUser, args.Ids); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func treeNodeGetChildren(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id  string    `json:"id"`
+		NodeType string `json:"nodeType"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.TreeNode().GetChildren(forUser, args.Id, args.NodeType, args.Offset, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func treeNodeGetParents(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id  string    `json:"id"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.TreeNode().GetParents(forUser, args.Id); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func treeNodeGlobalSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Search  string    `json:"search"`
+		NodeType string `json:"nodeType"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.TreeNode().GlobalSearch(forUser, args.Search, args.NodeType, args.Offset, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func treeNodeProjectSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Project  string    `json:"project"`
+		Search  string    `json:"search"`
+		NodeType string `json:"nodeType"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.TreeNode().ProjectSearch(forUser, args.Project, args.Search, args.NodeType, args.Offset, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func documentVersionCreate(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	file, header, err := r.FormFile("file")
+	if file != nil {
+		defer file.Close()
+	}
+	fileName := ""
+	if header != nil {
+		fileName = header.Filename
+	}
+	if err != nil {
+		return err
+	}
+	if res, err := coreApi.DocumentVersion().Create(forUser, r.FormValue("document"), r.FormValue("uploadComment"), fileName, file); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func documentVersionGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Ids  []string    `json:"ids"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.DocumentVersion().Get(forUser, args.Ids); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func documentVersionGetForDocument(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Document string `json:"document"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.DocumentVersion().GetForDocument(forUser, args.Document, args.Offset, args.Limit, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	pathSegments := strings.Split(r.URL.Path, "/")
+	id := pathSegments[len(pathSegments)-1]
+	var res *http.Response
+	var err error
+	if res, err = coreApi.DocumentVersion().GetSeedFile(forUser, id); res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
+	if err != nil {
+		return err
+	} else if _, err := io.Copy(w, res.Body); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func sheetSetName(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+		Name    string `json:"name"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if err := coreApi.Sheet().SetName(forUser, args.Id, args.Name); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func sheetGetItem(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	pathSegments := strings.Split(r.URL.Path, "/")
+	id := pathSegments[len(pathSegments)-1]
+	// TODO need to add in session recentSheetAccess optimisation here !!!!
+	var res *http.Response
+	var err error
+	if res, err = coreApi.Sheet().GetItem(forUser, id, path); res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
+	if err != nil {
+		return err
+	} else if _, err := io.Copy(w, res.Body); err != nil {
+		return err
+	} else {
 		return nil
 	}
 }

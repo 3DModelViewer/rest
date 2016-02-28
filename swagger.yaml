@@ -375,7 +375,7 @@ paths:
         - in: formData
           name: file
           description: image file for the project profile
-          required: false
+          required: true
           type: file
       tags:
         - project
@@ -1129,7 +1129,7 @@ paths:
           schema:
             type: object
             properties:
-              id:
+              document:
                 type: string
                 description: The document id to get versions of.
               offset:
@@ -1242,7 +1242,7 @@ paths:
           schema:
             type: object
             properties:
-              id:
+              documentVersion:
                 type: string
                 description: The documentVersion id to get sheets of.
               offset:
