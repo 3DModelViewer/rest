@@ -1,0 +1,1536 @@
+swagger: '2.0'
+info:
+  title: Modelhub Platform
+  description: Provides full read/write functionality for user/project/treeNode/documentVersion/sheet entities
+  version: "1.0.0"
+host: modelhub.io
+schemes:
+  - https
+basePath: /api/v1
+produces:
+  - application/json
+paths:
+  /user/login:
+    post:
+      summary: Logs the user in to the modelhub platform
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              autodeskId:
+                type: string
+                description: The users unique autodesk oxygen id.
+              openId:
+                type: string
+                description: The users autodesk account openId.
+              username:
+                type: string
+                description: The users username.
+              avatar:
+                type: string
+                description: The url for the users autodesk profile picture.
+              fullName:
+                type: string
+                description: The users full name.
+              email:
+                type: string
+                description: The users email.
+          required: true
+      tags:
+        - user
+      responses:
+        200:
+          description: Sets session cookie header required for all other endpoints
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /user/getCurrent:
+    post:
+      summary: Gets the current user
+      produces:
+        - application/json
+      tags:
+        - user
+      responses:
+        200:
+          schema:
+            $ref: '#/definitions/currentUser'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /user/setProperty:
+    post:
+      summary: Set one of the users settable properties.
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: The name of the property to set.
+                enum: ["description", "uiLanguage", "uiTheme", "locale", "timeFormat"]
+              value:
+                type: string
+                description: The new property value.
+          required: true
+      tags:
+        - user
+      responses:
+        200:
+          description: Operation was successful
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /user/get:
+    post:
+      summary: Get a list of users public profile info.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              ids:
+                type: array
+                items:
+                  type: string
+                maxItems: 100
+                description: The user ids to get.
+          required: true
+      tags:
+        - user
+      responses:
+        200:
+          schema:
+            type: array
+            items: 
+              $ref: '#/definitions/userWithDescription'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /user/getInProjectContext:
+    post:
+      summary: Get a list of users within a given project context.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              project:
+                type: string
+                description: The project id context.
+              role:
+                type: string
+                description: The role to filter on.
+                enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["fullNameAsc", "fullNameDesc"]
+          required: true
+      tags:
+        - user
+        - project
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/userInProjectContext'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /user/getInProjectInviteContext:
+    post:
+      summary: Get a list of invited users within a given project context.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              project:
+                type: string
+                description: The project id context.
+              role:
+                type: string
+                description: The role to filter on.
+                enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["fullNameAsc", "fullNameDesc"]
+          required: true
+      tags:
+        - user
+        - project
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/userInProjectContext'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /user/search:
+    post:
+      summary: Get a list of users matching a given search.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              search:
+                type: string
+                description: The users modelhub id.
+              role:
+                type: string
+                description: The role to filter on.
+                enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["fullNameAsc", "fullNameDesc"]
+          required: true
+      tags:
+        - user
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/user'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/create:
+    post:
+      summary: Create a new project.
+      description: |
+          Creates a new project with the additional transparent consequences a) the user creating it is automatically assigned the "owner" role within it, b) a folder treeNode is created with name "root" and has the same id as that of the project itself.
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: name
+          description: the projects name
+          required: true
+          type: string
+        - in: formData
+          name: description
+          description: the projects description
+          required: false
+          type: string
+        - in: formData
+          name: file
+          description: image file for the project profile
+          required: false
+          type: file
+      tags:
+        - project
+      responses:
+        200:
+          schema:
+            $ref: '#/definitions/project'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/setName:
+    post:
+      summary: set the project name.
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The project id.
+              name:
+                type: string
+                description: The new name for the project.
+                maxLength: 100
+          required: true
+      tags:
+        - project
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/setDescription:
+    post:
+      summary: set the project description.
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The project id.
+              description:
+                type: string
+                description: The new description for the project.
+                maxLength: 250
+          required: true
+      tags:
+        - project
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/setImage:
+    post:
+      summary: Set the project image.
+      consumes:
+        - application/x-www-form-urlencoded
+      parameters:
+        - in: formData
+          name: id
+          description: the project id
+          required: true
+          type: string
+        - in: formData
+          name: file
+          description: image file for the project profile
+          required: false
+          type: file
+      tags:
+        - project
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/addUsers:
+    post:
+      summary: Add users to the project with a specified role.
+      description: |
+         * Only owners and admins can call this endpoint for a project.
+         * Project owners can assign any role to anyone
+         * Project admins can only assign roles organiser/contributor/observer
+         * There must always be atleast one owner on a project
+         * Existing members will have their role changed automatically
+         * New memers will receive an invite to the project with the given role
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The project id.
+              role:
+                type: string
+                description: the role the users are being assigned to within the project.
+                enum: ["owner", "admin", "organiser", "contributor", "observer"]
+              users:
+                type: array
+                items: string
+                description: The user ids to add.
+                maxItems: 100
+          required: true
+      tags:
+        - project
+        - permission
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/removeUsers:
+    post:
+      summary: Remove users to the project with a specified role.
+      description: |
+         * Only owners and admins can call this endpoint for a project.
+         * Project owners can remove anyone
+         * Project admins can only remove users with roles organiser/contributor/observer
+         * There must always be atleast one owner on a project
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The project id.
+              users:
+                type: array
+                items: string
+                description: The user ids to add.
+                maxItems: 100
+          required: true
+      tags:
+        - project
+        - permission
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/acceptInvite:
+    post:
+      summary: Accept a project invite.
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The project id.
+          required: true
+      tags:
+        - project
+        - permission
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/declineInvite:
+    post:
+      summary: Decline a project invite.
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The project id.
+          required: true
+      tags:
+        - project
+        - permission
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/getImage/{id}.{ext}:
+    get:
+      summary: Get the project image.
+      parameters:
+        - in: path
+          name: id
+          type: string
+          description: The project id
+          required: true
+        - in: path
+          name: ext
+          type: string
+          description: The image extension
+          required: true
+      tags:
+        - project
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/get:
+    post:
+      summary: Get a list of projects.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              ids:
+                type: array
+                items:
+                  type: string
+                maxItems: 100
+                description: The project ids to get.
+          required: true
+      tags:
+        - project
+      responses:
+        200:
+          schema:
+            type: array
+            items: 
+              $ref: '#/definitions/project'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/getInUserContext:
+    post:
+      summary: Get a list of projects within a given user context.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              user:
+                type: string
+                description: The user id context.
+              role:
+                type: string
+                description: The role to filter on.
+                enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc", "createdAsc", "createdDesc"]
+          required: true
+      tags:
+        - user
+        - project
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/projectInUserContext'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/getInUserInviteContext:
+    post:
+      summary: Get a list of projects within a given user invite context.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              user:
+                type: string
+                description: The user id invite context.
+              role:
+                type: string
+                description: The role to filter on.
+                enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc", "createdAsc", "createdDesc"]
+          required: true
+      tags:
+        - user
+        - project
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/projectInUserContext'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /project/search:
+    post:
+      summary: Get a list of projects matching a given search.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              search:
+                type: string
+                description: The user id invite context.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc", "createdAsc", "createdDesc"]
+          required: true
+      tags:
+        - project
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/project'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/createFolder:
+    post:
+      summary: Create a new folder node.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              parent:
+                type: string
+                description: The parent node id.
+              name:
+                type: string
+                description: The name of the new folder.
+          required: true
+      tags:
+        - treeNode
+      responses:
+        200:
+          schema:
+            $ref: '#/definitions/treeNode'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/createDocument:
+    post:
+      summary: Create a new document node.
+      description: |
+          Creates a new document node with associated initial documentVersion 1
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: parent
+          description: the parent node id
+          required: true
+          type: string
+        - in: formData
+          name: name
+          description: the document name
+          required: true
+          type: string
+        - in: formData
+          name: uploadComment
+          description: the documentVersion upload comment
+          required: false
+          type: string
+        - in: formData
+          name: file
+          description: document file
+          required: true
+          type: file
+      tags:
+        - treeNode
+        - documentVersion
+      responses:
+        200:
+          schema:
+            $ref: '#/definitions/treeNode'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/setName:
+    post:
+      summary: set the node name.
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The node id.
+              name:
+                type: string
+                description: The new name for the node.
+                maxLength: 100
+          required: true
+      tags:
+        - treeNode
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/move:
+    post:
+      summary: move a set of nodes to a new parent.
+      description: |
+        * Parent must be of type folder
+        * Can't move a root folder
+        * Can't move a folder to one of its own subfolders
+        * Can't perform cross project moves
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              parent:
+                type: string
+                description: The node id.
+              ids:
+                type: array
+                items: string
+                description: The node ids to be moved.
+                maxItems: 100
+          required: true
+      tags:
+        - treeNode
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/get:
+    post:
+      summary: get a set of nodes.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              ids:
+                type: array
+                items: string
+                description: The node ids to get.
+                maxItems: 100
+          required: true
+      tags:
+        - treeNode
+      responses:
+        200:
+          schema:
+            type: array
+            items: 
+              $ref: '#/definitions/treeNode' 
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/getChildren:
+    post:
+      summary: Get a list of child nodes.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The node id to get children of.
+              nodeType:
+                type: string
+                description: The nodeType to filter on.
+                enum: ["any", "folder", "document", "viewerState"]
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - treeNode
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/treeNode'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/getParents:
+    post:
+      summary: Get the full list of parent nodes in order, starting from the root folder.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: array
+                items: string
+                description: The node id to get parents of.
+                maxItems: 100
+          required: true
+      tags:
+        - treeNode
+      responses:
+        200:
+          schema:
+            type: array
+            items: 
+              $ref: '#/definitions/treeNode' 
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/globalSearch:
+    post:
+      summary: Get a list of nodes mathing a given search.
+      description: |
+        * matches across all projects the user has access too.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              search:
+                type: string
+                description: The search to match on.
+              nodeType:
+                type: string
+                description: The nodeType to filter on.
+                enum: ["any", "folder", "document", "viewerState"]
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - treeNode
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/treeNode'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /treeNode/projectSearch:
+    post:
+      summary: Get a list of nodes mathing a given search.
+      description: |
+        * matches only for the specified project.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              project:
+                type: string
+                description: The project id.
+              search:
+                type: string
+                description: The search to match on.
+              nodeType:
+                type: string
+                description: The nodeType to filter on.
+                enum: ["any", "folder", "document", "viewerState"]
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - treeNode
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/treeNode'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /documentVersion/create:
+    post:
+      summary: Create a new document version.
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: document
+          description: the document id
+          required: true
+          type: string
+        - in: formData
+          name: uploadComment
+          description: the upload comment
+          required: false
+          type: string
+        - in: formData
+          name: file
+          description: document file for new version
+          required: true
+          type: file
+      tags:
+        - documentVersion
+      responses:
+        200:
+          schema:
+            $ref: '#/definitions/documentVersion'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /documentVersion/get:
+    post:
+      summary: Get a list of documentVersions.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              ids:
+                type: array
+                items:
+                  type: string
+                maxItems: 100
+                description: The documentVersion ids to get.
+          required: true
+      tags:
+        - documentVersion
+      responses:
+        200:
+          schema:
+            type: array
+            items: 
+              $ref: '#/definitions/documentVersion'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /documentVersion/getForDocument:
+    post:
+      summary: Get a list of documentVersions for a given document.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The document id to get versions of.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["versionAsc", "versionDesc"]
+          required: true
+      tags:
+        - documentVersion
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/documentVersion'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /documentVersion/getSeedFile/{id}:
+    get:
+      summary: Get document version seed file.
+      parameters:
+        - in: path
+          name: id
+          type: string
+          description: The documentVersion id
+          required: true
+      tags:
+        - documentVersion
+      responses:
+        200:
+          description: Will contain the file, use on an <a> to download  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /sheet/setName:
+    post:
+      summary: set the sheet name.
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The sheet id.
+              name:
+                type: string
+                description: The new name for the sheet.
+                maxLength: 100
+          required: true
+      tags:
+        - sheet
+      responses:
+        200:
+          description: Operation was successful  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /sheet/getItem/{id}/{path}:
+    get:
+      summary: Get document version seed file.
+      parameters:
+        - in: path
+          name: id
+          type: string
+          description: The sheet id
+          required: true
+        - in: path
+          name: path
+          type: string
+          description: The item path
+          required: true
+      tags:
+        - sheet
+      responses:
+        200:
+          description: Will contain the sheet item, used mainly by lmv for getting pack files and the ui for downloading sheet thumbnail images  
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /sheet/getForDocumentVersion:
+    post:
+      summary: Get a list of sheets for a given documentVersion.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The documentVersion id to get sheets of.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - sheet
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/sheet'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /sheet/globalSearch:
+    post:
+      summary: Get a list of sheets mathing a given search.
+      description: |
+        * matches across all projects the user has access too.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              search:
+                type: string
+                description: The search to match on.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - sheet
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/sheet'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /sheet/projectSearch:
+    post:
+      summary: Get a list of sheets mathing a given search.
+      description: |
+        * matches only for the specified project.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              project:
+                type: string
+                description: The project id.
+              search:
+                type: string
+                description: The search to match on.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - sheet
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items: 
+                  $ref: '#/definitions/sheet'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+definitions:
+  user:
+    type: object
+    properties:
+      id:
+        type: string
+        description: The users modelhub id.
+      avatar:
+        type: string
+        description: The url for the users autodesk profile image.
+      fullName:
+        type: string
+        description: The users full name.
+  userWithDescription:
+    type: object
+    allOf: 
+    - $ref: '#/definitions/user'
+    - type: object
+      properties:
+        description:
+          type: string
+          description: The users public profile description
+  currentUser:
+    type: object
+    allOf: 
+    - $ref: '#/definitions/userWithDescription'
+    - type: object
+      properties:
+        superUser:
+          type: boolean
+          description: specifies if the user has superUser status
+        uiLanguage:
+          type: string
+          description: The users preferred language for UI
+        uiTheme:
+          type: string
+          description: The users preferred UI theme
+        locale:
+          type: string
+          description: The users locale, mainly used for datetime string formatting
+        timeFormat:
+          type: string
+          description: The users preferred time format
+  userInProjectContext:
+    type: object
+    allOf: 
+    - $ref: '#/definitions/user'
+    - type: object
+      properties:
+        role:
+          type: string
+          description: The users role in the given project context
+  project:
+    type: object
+    properties:
+      id:
+        type: string
+        description: The projects id
+      name:
+        type: string
+        description: The projects name
+      description:
+        type: string
+        description: The projects description
+      created:
+        type: string
+        description: The datetime when the project was created in RFC 3339 format
+      imageFileExtension:
+        type: string
+        description: The projects image file extension
+  projectInUserContext:
+    type: object
+    allOf: 
+    - $ref: '#/definitions/project'
+    - type: object
+      properties:
+        role:
+          type: string
+          description: The role in the project for the given user context
+  treeNode:
+    type: object
+    properties:
+      id:
+        type: string
+        description: The nodes id
+      parent:
+        type: string
+        description: The nodes parent node id
+      project:
+        type: string
+        description: The nodes project id
+      nodeType:
+        type: string
+        description: The nodes type
+        enum: ["folder", "document", "viewerState"]
+      name:
+        type: string
+        description: The nodes name
+  documentVersion:
+    type: object
+    properties:
+      id:
+        type: string
+        description: The docVer id
+      document:
+        type: string
+        description: The document node id
+      version:
+        type: integer
+        description: The version number
+      project:
+        type: string
+        description: The project id
+      uploaded:
+        type: string
+        description: The datetime when the docVer was created in RFC 3339 format
+      uploadComment:
+        type: string
+        description: The upload comment
+      uploadedBy:
+        type: string
+        description: The modelhub id of the uploading user
+      fileExtension:
+        type: string
+        description: The original uploaded file extension
+      status:
+        type: string
+        description: The translation status of the docVer
+        enum: ["wont_register", "failed_to_register", "registered", "pending", "inprogress", "success", "failed"]
+  sheet:
+    type: object
+    properties:
+      id:
+        type: string
+        description: The sheet id
+      documentVersion:
+        type: string
+        description: The documentVersion id
+      project:
+        type: string
+        description: The project id
+      name:
+        type: string
+        description: The sheet name
+      thumbnails:
+        type: array
+        items:
+          type: string
+        description: The thumnail paths associated with the sheet
+      manifest:
+        type: string
+        description: The manifest path for the sheet (svf/f2d file)
+      role:
+        type: string
+        description: The role of the sheet
+        enum: ["2d", "3d"]
+  error:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
