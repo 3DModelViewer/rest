@@ -1,7 +1,9 @@
 swagger: '2.0'
 info:
   title: Modelhub Platform
-  description: Provides full read/write functionality for user/project/treeNode/documentVersion/sheet entities
+  description: |
+    Provides full read/write functionality for user/project/treeNode/documentVersion/sheet entities.
+    This document acts as a design spec only, it is not used to auto generate any code (see impl.go for actual implemenation).
   version: "1.0.0"
 host: modelhub.io
 schemes:
@@ -73,7 +75,7 @@ paths:
           schema:
             type: object
             properties:
-              name:
+              property:
                 type: string
                 description: The name of the property to set.
                 enum: ["description", "uiLanguage", "uiTheme", "locale", "timeFormat"]
