@@ -1230,6 +1230,37 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /sheet/get:
+      post:
+        summary: Get a list of sheets.
+        consumes:
+          - application/json
+        produces:
+          - application/json
+        parameters:
+          - in: body
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 100
+                  description: The sheet ids to get.
+            required: true
+        tags:
+          - sheet
+        responses:
+          200:
+            schema:
+              type: array
+              items:
+                $ref: '#/definitions/sheet'
+          default:
+            description: Unexpected error
+            schema:
+              $ref: '#/definitions/error'
   /sheet/getForDocumentVersion:
     post:
       summary: Get a list of sheets for a given documentVersion.

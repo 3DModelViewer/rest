@@ -5,14 +5,20 @@ import (
 	"errors"
 	"github.com/modelhub/core"
 	"github.com/modelhub/session"
+	"github.com/modelhub/vada"
 	"github.com/robsix/golog"
-	"net/http"
-	"strings"
-	"path/filepath"
+	sj "github.com/robsix/json"
 	"io"
+	"net/http"
+	"path/filepath"
+	"strings"
 )
 
-func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, log golog.Log) http.ServeMux {
+const (
+	sheetGetItemPath = "/api/v1/sheet/getItem/"
+)
+
+func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vada.VadaClient, log golog.Log) http.ServeMux {
 	mux := http.NewServeMux()
 	//user
 	mux.HandleFunc("/api/v1/user/getCurrent", handlerWrapper(coreApi, getSession, userGetCurrent, log))
@@ -52,7 +58,8 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, log golo
 	mux.HandleFunc("/api/v1/documentVersion/getSeedFile/", handlerWrapper(coreApi, getSession, documentVersionGetSeedFile, log))
 	//sheet
 	mux.HandleFunc("/api/v1/sheet/setName", handlerWrapper(coreApi, getSession, sheetSetName, log))
-	mux.HandleFunc("/api/v1/sheet/getItem/", handlerWrapper(coreApi, getSession, sheetGetItem, log))
+	mux.HandleFunc(sheetGetItemPath, vadaHandlerWrapper(coreApi, getSession, vada, sheetGetItem, log))
+	mux.HandleFunc("/api/v1/sheet/get", handlerWrapper(coreApi, getSession, sheetGet, log))
 	mux.HandleFunc("/api/v1/sheet/getForDocumentVersion", handlerWrapper(coreApi, getSession, sheetGetForDocumentVersion, log))
 	mux.HandleFunc("/api/v1/sheet/globalSearch", handlerWrapper(coreApi, getSession, sheetGlobalSearch, log))
 	mux.HandleFunc("/api/v1/sheet/projectSearch", handlerWrapper(coreApi, getSession, sheetProjectSearch, log))
@@ -78,7 +85,25 @@ func handlerWrapper(coreApi core.CoreApi, getSession session.SessionGetter, hand
 	}
 }
 
-type handler func(core.CoreApi, forUser string, session.Session, http.ResponseWriter, *http.Request, golog.Log) error
+type handler func(core.CoreApi, string, session.Session, http.ResponseWriter, *http.Request, golog.Log) error
+
+func vadaHandlerWrapper(coreApi core.CoreApi, getSession session.SessionGetter, vada vada.VadaClient, handler vadaHandler, log golog.Log) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if session, err := getSession(w, r); err != nil {
+			writeError(w, err, log)
+		} else if session == nil {
+			writeError(w, errors.New("no session found"), log)
+		} else if forUser, err := session.User(); err != nil {
+			writeError(w, err, log)
+		} else if forUser == "" {
+			writeError(w, errors.New("no valid user id in session"), log)
+		} else if err := handler(coreApi, forUser, session, w, r, vada, log); err != nil {
+			writeError(w, err, log)
+		}
+	}
+}
+
+type vadaHandler func(core.CoreApi, string, session.Session, http.ResponseWriter, *http.Request, string, vada.VadaClient, golog.Log) error
 
 func writeJson(w http.ResponseWriter, src interface{}, log golog.Log) {
 	if b, err := json.Marshal(src); err != nil {
@@ -93,12 +118,12 @@ func writeOffsetJson(w http.ResponseWriter, res interface{}, totalResults int, l
 	if res == nil {
 		res = []interface{}{}
 	}
-	writeJson(w, &struct{
+	writeJson(w, &struct {
 		TotalResults int `json:"totalResults"`
-		Results int `json:"results"`
+		Results      int `json:"results"`
 	}{
 		TotalResults: totalResults,
-		Results: res,
+		Results:      res,
 	}, log)
 }
 
@@ -196,10 +221,10 @@ func userGetInProjectInviteContext(coreApi core.CoreApi, forUser string, session
 func userSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		Search string `json:"search"`
-		Role    string `json:"role"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		Role   string `json:"role"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -233,8 +258,8 @@ func projectCreate(coreApi core.CoreApi, forUser string, session session.Session
 
 func projectSetName(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id string `json:"id"`
-		Name    string `json:"name"`
+		Id   string `json:"id"`
+		Name string `json:"name"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -247,8 +272,8 @@ func projectSetName(coreApi core.CoreApi, forUser string, session session.Sessio
 
 func projectSetDescription(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id string `json:"id"`
-		Description    string `json:"description"`
+		Id          string `json:"id"`
+		Description string `json:"description"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -280,9 +305,9 @@ func projectSetImage(coreApi core.CoreApi, forUser string, session session.Sessi
 
 func projectAddUsers(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id string `json:"id"`
-		Role    string `json:"role"`
-		Users    []string `json:"users"`
+		Id    string   `json:"id"`
+		Role  string   `json:"role"`
+		Users []string `json:"users"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -295,8 +320,8 @@ func projectAddUsers(coreApi core.CoreApi, forUser string, session session.Sessi
 
 func projectRemoveUsers(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id string `json:"id"`
-		Users    []string `json:"users"`
+		Id    string   `json:"id"`
+		Users []string `json:"users"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -346,7 +371,7 @@ func projectGetImage(coreApi core.CoreApi, forUser string, session session.Sessi
 	if err != nil {
 		return err
 	} else if _, err := io.Copy(w, res.Body); err != nil {
-		return  err
+		return err
 	} else {
 		w.Header().Add("Content-Type", "image/"+ext)
 		return nil
@@ -369,11 +394,11 @@ func projectGet(coreApi core.CoreApi, forUser string, session session.Session, w
 
 func projectGetInUserContext(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		User string `json:"user"`
-		Role    string `json:"role"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		User   string `json:"user"`
+		Role   string `json:"role"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -387,11 +412,11 @@ func projectGetInUserContext(coreApi core.CoreApi, forUser string, session sessi
 
 func projectGetInUserInviteContext(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		User string `json:"user"`
-		Role    string `json:"role"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		User   string `json:"user"`
+		Role   string `json:"role"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -406,9 +431,9 @@ func projectGetInUserInviteContext(coreApi core.CoreApi, forUser string, session
 func projectSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		Search string `json:"search"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -423,7 +448,7 @@ func projectSearch(coreApi core.CoreApi, forUser string, session session.Session
 func treeNodeCreateFolder(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		Parent string `json:"parent"`
-		Name  string    `json:"name"`
+		Name   string `json:"name"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -457,8 +482,8 @@ func treeNodeCreateDocument(coreApi core.CoreApi, forUser string, session sessio
 
 func treeNodeSetName(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id string `json:"id"`
-		Name  string    `json:"name"`
+		Id   string `json:"id"`
+		Name string `json:"name"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -471,8 +496,8 @@ func treeNodeSetName(coreApi core.CoreApi, forUser string, session session.Sessi
 
 func treeNodeMove(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Parent string `json:"parent"`
-		Ids  []string    `json:"ids"`
+		Parent string   `json:"parent"`
+		Ids    []string `json:"ids"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -485,7 +510,7 @@ func treeNodeMove(coreApi core.CoreApi, forUser string, session session.Session,
 
 func treeNodeGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Ids  []string    `json:"ids"`
+		Ids []string `json:"ids"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -499,11 +524,11 @@ func treeNodeGet(coreApi core.CoreApi, forUser string, session session.Session, 
 
 func treeNodeGetChildren(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id  string    `json:"id"`
+		Id       string `json:"id"`
 		NodeType string `json:"nodeType"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		Offset   int    `json:"offset"`
+		Limit    int    `json:"limit"`
+		SortBy   string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -517,7 +542,7 @@ func treeNodeGetChildren(coreApi core.CoreApi, forUser string, session session.S
 
 func treeNodeGetParents(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id  string    `json:"id"`
+		Id string `json:"id"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -531,11 +556,11 @@ func treeNodeGetParents(coreApi core.CoreApi, forUser string, session session.Se
 
 func treeNodeGlobalSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Search  string    `json:"search"`
+		Search   string `json:"search"`
 		NodeType string `json:"nodeType"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		Offset   int    `json:"offset"`
+		Limit    int    `json:"limit"`
+		SortBy   string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -549,12 +574,12 @@ func treeNodeGlobalSearch(coreApi core.CoreApi, forUser string, session session.
 
 func treeNodeProjectSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Project  string    `json:"project"`
-		Search  string    `json:"search"`
+		Project  string `json:"project"`
+		Search   string `json:"search"`
 		NodeType string `json:"nodeType"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		Offset   int    `json:"offset"`
+		Limit    int    `json:"limit"`
+		SortBy   string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -588,7 +613,7 @@ func documentVersionCreate(coreApi core.CoreApi, forUser string, session session
 
 func documentVersionGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Ids  []string    `json:"ids"`
+		Ids []string `json:"ids"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -603,9 +628,9 @@ func documentVersionGet(coreApi core.CoreApi, forUser string, session session.Se
 func documentVersionGetForDocument(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		Document string `json:"document"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		Offset   int    `json:"offset"`
+		Limit    int    `json:"limit"`
+		SortBy   string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -636,8 +661,8 @@ func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session se
 
 func sheetSetName(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id string `json:"id"`
-		Name    string `json:"name"`
+		Id   string `json:"id"`
+		Name string `json:"name"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -648,20 +673,108 @@ func sheetSetName(coreApi core.CoreApi, forUser string, session session.Session,
 	}
 }
 
-func sheetGetItem(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	pathSegments := strings.Split(r.URL.Path, "/")
-	id := pathSegments[len(pathSegments)-1]
-	// TODO need to add in session recentSheetAccess optimisation here !!!!
+func sheetGetItem(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, vada vada.VadaClient, log golog.Log) error {
+	id := r.URL.Path[len(sheetGetItemPath):]
+	path := ""
+	if slashIdx := strings.Index(id, "/"); slashIdx == -1 {
+		return errors.New("can't find item path in sheetGetItem call")
+	} else {
+		path = id[slashIdx:]
+		id = id[:slashIdx]
+	}
+	baseUrn := ""
 	var res *http.Response
 	var err error
-	if res, err = coreApi.Sheet().GetItem(forUser, id, path); res != nil && res.Body != nil {
-		defer res.Body.Close()
+	if baseUrn, err = session.GetSheetBaseUrn(id); err != nil {
+		res, err = coreApi.Sheet().GetItem(forUser, id, path)
+	} else {
+		log.Info("RestApi session recentlyAccessSheet was found :)") //TODO delete this once verified it works
+		res, err = vada.GetSheetItem(baseUrn + path)
 	}
-	if err != nil {
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+		contentType := res.Header["Content-Type"]
+		w.Header().Add("Content-Type", contentType)
+		if contentType == "application/json" {
+			log.Info("RestApi making json lmv safe") //TODO delete this once verifieid it works
+			if js, err := sj.FromReadCloser(res.Body); err != nil {
+				return err
+			} else {
+				unsafeJsonStr, _ := js.ToString()
+				log.Info("unsafe json %v", unsafeJsonStr) //TODO delete this once verifieid it works
+				safeJsonStr := strings.Replace(unsafeJsonStr, baseUrn+"/", sheetGetItemPath, -1)
+				log.Info("safe json %v", safeJsonStr) //TODO delete this once verifieid it works
+				writeJson(w, safeJsonStr, log)
+			}
+		} else {
+			_, err = io.Copy(w, res.Body)
+		}
+	}
+	return err
+}
+
+func sheetGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Ids []string `json:"ids"`
+	}{}
+	if err := readJson(r, args); err != nil {
 		return err
-	} else if _, err := io.Copy(w, res.Body); err != nil {
+	} else if res, err := coreApi.Sheet().Get(forUser, args.Ids); err != nil {
 		return err
 	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func sheetGetForDocumentVersion(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		DocumentVersion string `json:"documentVersion"`
+		Offset          int    `json:"offset"`
+		Limit           int    `json:"limit"`
+		SortBy          string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Sheet().GetForDocumentVersion(forUser, args.DocumentVersion, args.Offset, args.Limit, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func sheetGlobalSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Search string `json:"search"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Sheet().GlobalSearch(forUser, args.Search, args.Offset, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func sheetProjectSearch(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Project string `json:"project"`
+		Search  string `json:"search"`
+		Offset  int    `json:"offset"`
+		Limit   int    `json:"limit"`
+		SortBy  string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Sheet().ProjectSearch(forUser, args.Project, args.Search, args.Offset, args.SortBy); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
 		return nil
 	}
 }
