@@ -686,7 +686,9 @@ func sheetGetItem(coreApi core.CoreApi, forUser string, session session.Session,
 	var res *http.Response
 	var err error
 	if baseUrn, err = session.GetSheetBaseUrn(id); err != nil {
-		res, err = coreApi.Sheet().GetItem(forUser, id, path)
+		if res, baseUrn, err = coreApi.Sheet().GetItem(forUser, id, path); err == nil {
+			session.SetAccessedSheet(id, baseUrn)
+		}
 	} else {
 		log.Info("RestApi session recentlyAccessSheet was found :)") //TODO delete this once verified it works
 		res, err = vada.GetSheetItem(baseUrn + path)
