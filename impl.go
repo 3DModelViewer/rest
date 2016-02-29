@@ -6,6 +6,11 @@ import (
 	"github.com/modelhub/core"
 	"github.com/modelhub/session"
 	"github.com/modelhub/vada"
+	"github.com/modelhub/core/user"
+	"github.com/modelhub/core/project"
+	"github.com/modelhub/core/treenode"
+	"github.com/modelhub/core/documentversion"
+	"github.com/modelhub/core/sheet"
 	"github.com/robsix/golog"
 	sj "github.com/robsix/json"
 	"io"
@@ -103,7 +108,7 @@ func vadaHandlerWrapper(coreApi core.CoreApi, getSession session.SessionGetter, 
 	}
 }
 
-type vadaHandler func(core.CoreApi, string, session.Session, http.ResponseWriter, *http.Request, string, vada.VadaClient, golog.Log) error
+type vadaHandler func(core.CoreApi, string, session.Session, http.ResponseWriter, *http.Request, vada.VadaClient, golog.Log) error
 
 func writeJson(w http.ResponseWriter, src interface{}, log golog.Log) {
 	if b, err := json.Marshal(src); err != nil {
@@ -120,7 +125,7 @@ func writeOffsetJson(w http.ResponseWriter, res interface{}, totalResults int, l
 	}
 	writeJson(w, &struct {
 		TotalResults int `json:"totalResults"`
-		Results      int `json:"results"`
+		Results      interface{} `json:"results"`
 	}{
 		TotalResults: totalResults,
 		Results:      res,
@@ -138,7 +143,7 @@ func readJson(r *http.Request, dst interface{}) error {
 func writeError(w http.ResponseWriter, err error, log golog.Log) {
 	le := log.Error("RestApi error: %v", err)
 	w.WriteHeader(500)
-	w.Write("unexpected error, id: " + le.LogId)
+	w.Write([]byte("unexpected error, id: " + le.LogId))
 }
 
 //END Util
@@ -146,7 +151,7 @@ func writeError(w http.ResponseWriter, err error, log golog.Log) {
 //START Handlers
 
 func userGetCurrent(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	if res, err := coreApi.User().Get(forUser); err != nil {
+	if res, err := coreApi.User().GetCurrent(forUser); err != nil {
 		return err
 	} else {
 		writeJson(w, res, log)
@@ -161,7 +166,9 @@ func userSetProperty(coreApi core.CoreApi, forUser string, session session.Sessi
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if err := coreApi.User().SetProperty(forUser, args.Property); err != nil {
+	} else if prop, err := user.Property(args.Property); err != nil {
+		return err
+	} else if err := coreApi.User().SetProperty(forUser, prop, args.Value); err != nil {
 		return err
 	} else {
 		return nil
@@ -192,7 +199,7 @@ func userGetInProjectContext(coreApi core.CoreApi, forUser string, session sessi
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.User().GetInProjectContext(forUser, args.Project, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.User().GetInProjectContext(forUser, args.Project, project.Role(args.Role), args.Offset, args.Limit, user.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -210,7 +217,7 @@ func userGetInProjectInviteContext(coreApi core.CoreApi, forUser string, session
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.User().GetInProjectInviteContext(forUser, args.Project, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.User().GetInProjectInviteContext(forUser, args.Project, project.Role(args.Role), args.Offset, args.Limit, user.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -228,7 +235,7 @@ func userSearch(coreApi core.CoreApi, forUser string, session session.Session, w
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.User().Search(args.Search, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.User().Search(args.Search, args.Offset, args.Limit, user.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -311,7 +318,7 @@ func projectAddUsers(coreApi core.CoreApi, forUser string, session session.Sessi
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if err := coreApi.Project().AddUsers(forUser, args.Id, args.Role, args.Users); err != nil {
+	} else if err := coreApi.Project().AddUsers(forUser, args.Id, project.Role(args.Role), args.Users); err != nil {
 		return err
 	} else {
 		return nil
@@ -402,7 +409,7 @@ func projectGetInUserContext(coreApi core.CoreApi, forUser string, session sessi
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.Project().GetInUserContext(forUser, args.User, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.Project().GetInUserContext(forUser, args.User, project.Role(args.Role), args.Offset, args.Limit, project.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -420,7 +427,7 @@ func projectGetInUserInviteContext(coreApi core.CoreApi, forUser string, session
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.Project().GetInUserInviteContext(forUser, args.User, args.Role, args.Offset, args.Limit, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.Project().GetInUserInviteContext(forUser, args.User, project.Role(args.Role), args.Offset, args.Limit, project.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -437,7 +444,7 @@ func projectSearch(coreApi core.CoreApi, forUser string, session session.Session
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.Project().GetInUserInviteContext(forUser, args.Search, args.Offset, args.Limit, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.Project().Search(forUser, args.Search, args.Offset, args.Limit, project.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -532,7 +539,7 @@ func treeNodeGetChildren(coreApi core.CoreApi, forUser string, session session.S
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.TreeNode().GetChildren(forUser, args.Id, args.NodeType, args.Offset, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.TreeNode().GetChildren(forUser, args.Id, treenode.NodeType(args.NodeType), args.Offset, args.Limit, treenode.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -564,7 +571,7 @@ func treeNodeGlobalSearch(coreApi core.CoreApi, forUser string, session session.
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.TreeNode().GlobalSearch(forUser, args.Search, args.NodeType, args.Offset, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.TreeNode().GlobalSearch(forUser, args.Search, treenode.NodeType(args.NodeType), args.Offset, args.Limit, treenode.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -583,7 +590,7 @@ func treeNodeProjectSearch(coreApi core.CoreApi, forUser string, session session
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.TreeNode().ProjectSearch(forUser, args.Project, args.Search, args.NodeType, args.Offset, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.TreeNode().ProjectSearch(forUser, args.Project, args.Search, treenode.NodeType(args.NodeType), args.Offset, args.Limit, treenode.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -634,7 +641,7 @@ func documentVersionGetForDocument(coreApi core.CoreApi, forUser string, session
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.DocumentVersion().GetForDocument(forUser, args.Document, args.Offset, args.Limit, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.DocumentVersion().GetForDocument(forUser, args.Document, args.Offset, args.Limit, documentversion.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -695,7 +702,7 @@ func sheetGetItem(coreApi core.CoreApi, forUser string, session session.Session,
 	}
 	if res != nil && res.Body != nil {
 		defer res.Body.Close()
-		contentType := res.Header["Content-Type"]
+		contentType := strings.Join(res.Header["Content-Type"], ",")
 		w.Header().Add("Content-Type", contentType)
 		if contentType == "application/json" {
 			log.Info("RestApi making json lmv safe") //TODO delete this once verifieid it works
@@ -738,7 +745,7 @@ func sheetGetForDocumentVersion(coreApi core.CoreApi, forUser string, session se
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.Sheet().GetForDocumentVersion(forUser, args.DocumentVersion, args.Offset, args.Limit, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.Sheet().GetForDocumentVersion(forUser, args.DocumentVersion, args.Offset, args.Limit, sheet.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -755,7 +762,7 @@ func sheetGlobalSearch(coreApi core.CoreApi, forUser string, session session.Ses
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.Sheet().GlobalSearch(forUser, args.Search, args.Offset, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.Sheet().GlobalSearch(forUser, args.Search, args.Offset, args.Limit, sheet.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
@@ -773,7 +780,7 @@ func sheetProjectSearch(coreApi core.CoreApi, forUser string, session session.Se
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.Sheet().ProjectSearch(forUser, args.Project, args.Search, args.Offset, args.SortBy); err != nil {
+	} else if res, totalResults, err := coreApi.Sheet().ProjectSearch(forUser, args.Project, args.Search, args.Offset, args.Limit, sheet.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
