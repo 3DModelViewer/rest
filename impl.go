@@ -18,7 +18,7 @@ const (
 	sheetGetItemPath = "/api/v1/sheet/getItem/"
 )
 
-func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vada.VadaClient, log golog.Log) http.ServeMux {
+func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vada.VadaClient, log golog.Log) *http.ServeMux {
 	mux := http.NewServeMux()
 	//user
 	mux.HandleFunc("/api/v1/user/getCurrent", handlerWrapper(coreApi, getSession, userGetCurrent, log))
