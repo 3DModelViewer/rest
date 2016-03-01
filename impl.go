@@ -196,7 +196,7 @@ func userGetDescription(coreApi core.CoreApi, forUser string, session session.Se
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if des, err := coreApi.User().GetDescription(forUser, args.Id); err != nil {
+	} else if des, err := coreApi.User().GetDescription(args.Id); err != nil {
 		return err
 	} else {
 		writeJson(w, des, log)
