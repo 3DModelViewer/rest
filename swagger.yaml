@@ -92,137 +92,63 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /user/getDescription:
+    post:
+      summary: Gets the users public profile description.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The users id to get the profile description for.
+          required: true
+      tags:
+        - user
+      responses:
+        200:
+          schema:
+            type: string
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
   /user/get:
-    post:
-      summary: Get a list of users public profile info.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          schema:
-            type: object
-            properties:
-              ids:
-                type: array
-                items:
-                  type: string
-                maxItems: 100
-                description: The user ids to get.
-          required: true
-      tags:
-        - user
-      responses:
-        200:
-          schema:
-            type: array
-            items: 
-              $ref: '#/definitions/userWithDescription'
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/error'
-  /user/getInProjectContext:
-    post:
-      summary: Get a list of users within a given project context.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          schema:
-            type: object
-            properties:
-              project:
-                type: string
-                description: The project id context.
-              role:
-                type: string
-                description: The role to filter on.
-                enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
-              offset:
-                type: integer
-                description: The offset to start extracting results from.
-              limit:
-                type: integer
-                description: The maximum number of results to return.
-              sortBy:
-                type: string
-                description: sort by field.
-                enum: ["fullNameAsc", "fullNameDesc"]
-          required: true
-      tags:
-        - user
-        - project
-      responses:
-        200:
-          schema:
-            type: object
-            properties:
-              totalResults:
-                type: integer
-                description: The total number of results found in the query
-              results:
-                type: array
-                description: The extracted results given the initial query/filter/offset/limit/sortBy
-                items: 
-                  $ref: '#/definitions/userInProjectContext'
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/error'
-  /user/getInProjectInviteContext:
-    post:
-      summary: Get a list of invited users within a given project context.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          schema:
-            type: object
-            properties:
-              project:
-                type: string
-                description: The project id context.
-              role:
-                type: string
-                description: The role to filter on.
-                enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
-              offset:
-                type: integer
-                description: The offset to start extracting results from.
-              limit:
-                type: integer
-                description: The maximum number of results to return.
-              sortBy:
-                type: string
-                description: sort by field.
-                enum: ["fullNameAsc", "fullNameDesc"]
-          required: true
-      tags:
-        - user
-        - project
-      responses:
-        200:
-          schema:
-            type: object
-            properties:
-              totalResults:
-                type: integer
-                description: The total number of results found in the query
-              results:
-                type: array
-                description: The extracted results given the initial query/filter/offset/limit/sortBy
-                items: 
-                  $ref: '#/definitions/userInProjectContext'
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/error'
+      post:
+        summary: Get a list of users public profile info.
+        consumes:
+          - application/json
+        produces:
+          - application/json
+        parameters:
+          - in: body
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 100
+                  description: The user ids to get.
+            required: true
+        tags:
+          - user
+        responses:
+          200:
+            schema:
+              type: array
+              items:
+                $ref: '#/definitions/user'
+          default:
+            description: Unexpected error
+            schema:
+              $ref: '#/definitions/error'
   /user/search:
     post:
       summary: Get a list of users matching a given search.
@@ -508,6 +434,106 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /project/getMemberships:
+      post:
+        summary: Get a list of user ids and their roles within a given project.
+        consumes:
+          - application/json
+        produces:
+          - application/json
+        parameters:
+          - in: body
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: The project id context.
+                role:
+                  type: string
+                  description: The role to filter on.
+                  enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
+                offset:
+                  type: integer
+                  description: The offset to start extracting results from.
+                limit:
+                  type: integer
+                  description: The maximum number of results to return.
+                sortBy:
+                  type: string
+                  description: sort by field.
+                  enum: ["fullNameAsc", "fullNameDesc"]
+            required: true
+        tags:
+          - user
+          - project
+        responses:
+          200:
+            schema:
+              type: object
+              properties:
+                totalResults:
+                  type: integer
+                  description: The total number of results found in the query
+                results:
+                  type: array
+                  description: The extracted results given the initial query/filter/offset/limit/sortBy
+                  items:
+                    $ref: '#/definitions/membership'
+          default:
+            description: Unexpected error
+            schema:
+              $ref: '#/definitions/error'
+  /project/getMembershipInvites:
+        post:
+          summary: Get a list of invited user ids and their invited roles within a given project.
+          consumes:
+            - application/json
+          produces:
+            - application/json
+          parameters:
+            - in: body
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: The project id context.
+                  role:
+                    type: string
+                    description: The role to filter on.
+                    enum: ["any", "owner", "admin", "organiser", "contributor", "observer"]
+                  offset:
+                    type: integer
+                    description: The offset to start extracting results from.
+                  limit:
+                    type: integer
+                    description: The maximum number of results to return.
+                  sortBy:
+                    type: string
+                    description: sort by field.
+                    enum: ["fullNameAsc", "fullNameDesc"]
+              required: true
+          tags:
+            - user
+            - project
+          responses:
+            200:
+              schema:
+                type: object
+                properties:
+                  totalResults:
+                    type: integer
+                    description: The total number of results found in the query
+                  results:
+                    type: array
+                    description: The extracted results given the initial query/filter/offset/limit/sortBy
+                    items:
+                      $ref: '#/definitions/membership'
+            default:
+              description: Unexpected error
+              schema:
+                $ref: '#/definitions/error'
   /project/getImage/{id}.{ext}:
     get:
       summary: Get the project image.
@@ -1416,19 +1442,10 @@ definitions:
       fullName:
         type: string
         description: The users full name.
-  userWithDescription:
-    type: object
-    allOf: 
-    - $ref: '#/definitions/user'
-    - type: object
-      properties:
-        description:
-          type: string
-          description: The users public profile description
   currentUser:
     type: object
-    allOf: 
-    - $ref: '#/definitions/userWithDescription'
+    allOf:
+    - $ref: '#/definitions/user'
     - type: object
       properties:
         superUser:
@@ -1446,15 +1463,15 @@ definitions:
         timeFormat:
           type: string
           description: The users preferred time format
-  userInProjectContext:
+  membership:
     type: object
-    allOf: 
-    - $ref: '#/definitions/user'
-    - type: object
-      properties:
-        role:
-          type: string
-          description: The users role in the given project context
+    properties:
+      user:
+        type: string
+        description: The users id
+      role:
+        type: string
+        description: The users role
   project:
     type: object
     properties:

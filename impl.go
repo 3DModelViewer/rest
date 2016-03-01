@@ -28,9 +28,8 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	//user
 	mux.HandleFunc("/api/v1/user/getCurrent", handlerWrapper(coreApi, getSession, userGetCurrent, log))
 	mux.HandleFunc("/api/v1/user/setProperty", handlerWrapper(coreApi, getSession, userSetProperty, log))
+	mux.HandleFunc("/api/v1/user/getDescription", handlerWrapper(coreApi, getSession, userGetDescription, log))
 	mux.HandleFunc("/api/v1/user/get", handlerWrapper(coreApi, getSession, userGet, log))
-	mux.HandleFunc("/api/v1/user/getInProjectContext", handlerWrapper(coreApi, getSession, userGetInProjectContext, log))
-	mux.HandleFunc("/api/v1/user/getInProjectInviteContext", handlerWrapper(coreApi, getSession, userGetInProjectInviteContext, log))
 	mux.HandleFunc("/api/v1/user/search", handlerWrapper(coreApi, getSession, userSearch, log))
 	//project
 	mux.HandleFunc("/api/v1/project/create", handlerWrapper(coreApi, getSession, projectCreate, log))
@@ -41,6 +40,8 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/project/removeUsers", handlerWrapper(coreApi, getSession, projectRemoveUsers, log))
 	mux.HandleFunc("/api/v1/project/acceptInvite", handlerWrapper(coreApi, getSession, projectAcceptInvite, log))
 	mux.HandleFunc("/api/v1/project/declineInvite", handlerWrapper(coreApi, getSession, projectDeclineInvite, log))
+	mux.HandleFunc("/api/v1/project/getMemberships", handlerWrapper(coreApi, getSession, projectGetMemberships, log))
+	mux.HandleFunc("/api/v1/project/getMembershipInvites", handlerWrapper(coreApi, getSession, projectGetMembershipInvites, log))
 	mux.HandleFunc("/api/v1/project/getImage/", handlerWrapper(coreApi, getSession, projectGetImage, log))
 	mux.HandleFunc("/api/v1/project/get", handlerWrapper(coreApi, getSession, projectGet, log))
 	mux.HandleFunc("/api/v1/project/getInUserContext", handlerWrapper(coreApi, getSession, projectGetInUserContext, log))
@@ -189,38 +190,16 @@ func userGet(coreApi core.CoreApi, forUser string, session session.Session, w ht
 	}
 }
 
-func userGetInProjectContext(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+func userGetDescription(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Project string `json:"project"`
-		Role    string `json:"role"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
+		Id string `json:"id"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.User().GetInProjectContext(forUser, args.Project, project.Role(args.Role), args.Offset, args.Limit, user.SortBy(args.SortBy)); err != nil {
+	} else if des, err := coreApi.User().GetDescription(forUser, args.Id); err != nil {
 		return err
 	} else {
-		writeOffsetJson(w, res, totalResults, log)
-		return nil
-	}
-}
-
-func userGetInProjectInviteContext(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	args := &struct {
-		Project string `json:"project"`
-		Role    string `json:"role"`
-		Offset  int    `json:"offset"`
-		Limit   int    `json:"limit"`
-		SortBy  string `json:"sortBy"`
-	}{}
-	if err := readJson(r, args); err != nil {
-		return err
-	} else if res, totalResults, err := coreApi.User().GetInProjectInviteContext(forUser, args.Project, project.Role(args.Role), args.Offset, args.Limit, user.SortBy(args.SortBy)); err != nil {
-		return err
-	} else {
-		writeOffsetJson(w, res, totalResults, log)
+		writeJson(w, des, log)
 		return nil
 	}
 }
@@ -361,6 +340,42 @@ func projectDeclineInvite(coreApi core.CoreApi, forUser string, session session.
 	} else if err := coreApi.Project().DeclineInvite(forUser, args.Id); err != nil {
 		return err
 	} else {
+		return nil
+	}
+}
+
+func projectGetMemberships(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id   string `json:"id"`
+		Role   string `json:"role"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Project().GetMemberships(forUser, args.Id, project.Role(args.Role), args.Offset, args.Limit, project.SortBy(args.SortBy)); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func projectGetMembershipInvites(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id   string `json:"id"`
+		Role   string `json:"role"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Project().GetMembershipInvites(forUser, args.Id, project.Role(args.Role), args.Offset, args.Limit, project.SortBy(args.SortBy)); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
 		return nil
 	}
 }
