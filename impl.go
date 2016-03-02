@@ -279,7 +279,7 @@ func projectSetImage(coreApi core.CoreApi, forUser string, session session.Sessi
 	if header != nil {
 		fileName = header.Filename
 	}
-	if err != nil {
+	if err != nil && err != http.ErrMissingFile {
 		return err
 	}
 	if err := coreApi.Project().SetImage(forUser, r.FormValue("id"), fileName, file); err != nil {
