@@ -176,20 +176,6 @@ func userSetProperty(coreApi core.CoreApi, forUser string, session session.Sessi
 	}
 }
 
-func userGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	args := &struct {
-		Ids []string `json:"ids"`
-	}{}
-	if err := readJson(r, args); err != nil {
-		return err
-	} else if res, err := coreApi.User().Get(args.Ids); err != nil {
-		return err
-	} else {
-		writeJson(w, res, log)
-		return nil
-	}
-}
-
 func userGetDescription(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		Id string `json:"id"`
@@ -200,6 +186,20 @@ func userGetDescription(coreApi core.CoreApi, forUser string, session session.Se
 		return err
 	} else {
 		writeJson(w, des, log)
+		return nil
+	}
+}
+
+func userGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Ids []string `json:"ids"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.User().Get(args.Ids); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
 		return nil
 	}
 }
