@@ -144,7 +144,7 @@ func readJson(r *http.Request, dst interface{}) error {
 func writeError(w http.ResponseWriter, err error, log golog.Log) {
 	le := log.Error("RestApi error: %v", err)
 	w.WriteHeader(500)
-	w.Write([]byte("unexpected error, id: " + le.LogId))
+	w.Write([]byte(le.LogId))
 }
 
 //END Util
