@@ -534,6 +534,32 @@ paths:
               description: Unexpected error
               schema:
                 $ref: '#/definitions/error'
+  /project/getDescription:
+    post:
+      summary: Get a projects description.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The project id to get the description for.
+          required: true
+      tags:
+        - project
+      responses:
+        200:
+          schema:
+            type: string
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
   /project/getImage/{id}.{ext}:
     get:
       summary: Get the project image.
@@ -1481,9 +1507,6 @@ definitions:
       name:
         type: string
         description: The projects name
-      description:
-        type: string
-        description: The projects description
       created:
         type: string
         description: The datetime when the project was created in RFC 3339 format

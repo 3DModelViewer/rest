@@ -42,6 +42,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/project/declineInvite", handlerWrapper(coreApi, getSession, projectDeclineInvite, log))
 	mux.HandleFunc("/api/v1/project/getMemberships", handlerWrapper(coreApi, getSession, projectGetMemberships, log))
 	mux.HandleFunc("/api/v1/project/getMembershipInvites", handlerWrapper(coreApi, getSession, projectGetMembershipInvites, log))
+	mux.HandleFunc("/api/v1/project/getDescription", handlerWrapper(coreApi, getSession, projectGetDescription, log))
 	mux.HandleFunc("/api/v1/project/getImage/", handlerWrapper(coreApi, getSession, projectGetImage, log))
 	mux.HandleFunc("/api/v1/project/get", handlerWrapper(coreApi, getSession, projectGet, log))
 	mux.HandleFunc("/api/v1/project/getInUserContext", handlerWrapper(coreApi, getSession, projectGetInUserContext, log))
@@ -376,6 +377,20 @@ func projectGetMembershipInvites(coreApi core.CoreApi, forUser string, session s
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func projectGetDescription(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.Project().GetDescription(forUser, args.Id); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
 		return nil
 	}
 }
