@@ -78,7 +78,7 @@ paths:
               property:
                 type: string
                 description: The name of the property to set.
-                enum: ["description", "uiLanguage", "uiTheme", "locale", "timeFormat"]
+                enum: ["uiLanguage", "uiTheme", "locale", "timeFormat"]
               value:
                 type: string
                 description: The new property value.
@@ -88,32 +88,6 @@ paths:
       responses:
         200:
           description: Operation was successful
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/error'
-  /user/getDescription:
-    post:
-      summary: Gets the users public profile description.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          schema:
-            type: object
-            properties:
-              id:
-                type: string
-                description: The users id to get the profile description for.
-          required: true
-      tags:
-        - user
-      responses:
-        200:
-          schema:
-            type: string
         default:
           description: Unexpected error
           schema:
@@ -214,11 +188,6 @@ paths:
           required: true
           type: string
         - in: formData
-          name: description
-          description: the projects description
-          required: false
-          type: string
-        - in: formData
           name: file
           description: image file for the project profile
           required: false
@@ -250,33 +219,6 @@ paths:
                 type: string
                 description: The new name for the project.
                 maxLength: 100
-          required: true
-      tags:
-        - project
-      responses:
-        200:
-          description: Operation was successful  
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/error'
-  /project/setDescription:
-    post:
-      summary: set the project description.
-      consumes:
-        - application/json
-      parameters:
-        - in: body
-          schema:
-            type: object
-            properties:
-              id:
-                type: string
-                description: The project id.
-              description:
-                type: string
-                description: The new description for the project.
-                maxLength: 250
           required: true
       tags:
         - project
@@ -534,32 +476,6 @@ paths:
               description: Unexpected error
               schema:
                 $ref: '#/definitions/error'
-  /project/getDescription:
-    post:
-      summary: Get a projects description.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          schema:
-            type: object
-            properties:
-              id:
-                type: string
-                description: The project id to get the description for.
-          required: true
-      tags:
-        - project
-      responses:
-        200:
-          schema:
-            type: string
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/error'
   /project/getImage/{id}.{ext}:
     get:
       summary: Get the project image.
