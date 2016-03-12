@@ -78,7 +78,7 @@ paths:
               property:
                 type: string
                 description: The name of the property to set.
-                enum: ["uiLanguage", "uiTheme", "locale", "timeFormat"]
+                enum: ["uiLanguage", "uiTheme", "timeFormat"]
               value:
                 type: string
                 description: The new property value.
@@ -1399,9 +1399,6 @@ definitions:
         uiTheme:
           type: string
           description: The users preferred UI theme
-        locale:
-          type: string
-          description: The users locale, mainly used for datetime string formatting
         timeFormat:
           type: string
           description: The users preferred time format
