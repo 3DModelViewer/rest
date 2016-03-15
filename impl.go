@@ -15,7 +15,6 @@ import (
 	sj "github.com/robsix/json"
 	"io"
 	"net/http"
-	"path/filepath"
 	"strings"
 )
 
@@ -33,14 +32,14 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	//project
 	mux.HandleFunc("/api/v1/project/create", handlerWrapper(coreApi, getSession, projectCreate, log))
 	mux.HandleFunc("/api/v1/project/setName", handlerWrapper(coreApi, getSession, projectSetName, log))
-	mux.HandleFunc("/api/v1/project/setImage", handlerWrapper(coreApi, getSession, projectSetImage, log))
+	mux.HandleFunc("/api/v1/project/setThumbnail", handlerWrapper(coreApi, getSession, projectSetThumbnail, log))
 	mux.HandleFunc("/api/v1/project/addUsers", handlerWrapper(coreApi, getSession, projectAddUsers, log))
 	mux.HandleFunc("/api/v1/project/removeUsers", handlerWrapper(coreApi, getSession, projectRemoveUsers, log))
 	mux.HandleFunc("/api/v1/project/acceptInvite", handlerWrapper(coreApi, getSession, projectAcceptInvite, log))
 	mux.HandleFunc("/api/v1/project/declineInvite", handlerWrapper(coreApi, getSession, projectDeclineInvite, log))
 	mux.HandleFunc("/api/v1/project/getMemberships", handlerWrapper(coreApi, getSession, projectGetMemberships, log))
 	mux.HandleFunc("/api/v1/project/getMembershipInvites", handlerWrapper(coreApi, getSession, projectGetMembershipInvites, log))
-	mux.HandleFunc("/api/v1/project/getImage/", handlerWrapper(coreApi, getSession, projectGetImage, log))
+	mux.HandleFunc("/api/v1/project/getThumbnail/", handlerWrapper(coreApi, getSession, projectGetThumbnail, log))
 	mux.HandleFunc("/api/v1/project/get", handlerWrapper(coreApi, getSession, projectGet, log))
 	mux.HandleFunc("/api/v1/project/getInUserContext", handlerWrapper(coreApi, getSession, projectGetInUserContext, log))
 	mux.HandleFunc("/api/v1/project/getInUserInviteContext", handlerWrapper(coreApi, getSession, projectGetInUserInviteContext, log))
@@ -207,18 +206,14 @@ func userSearch(coreApi core.CoreApi, forUser string, session session.Session, w
 }
 
 func projectCreate(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	file, header, err := r.FormFile("file")
-	if file != nil {
-		defer file.Close()
-	}
-	fileName := ""
-	if header != nil {
-		fileName = header.Filename
+	thumbnail, _, err := r.FormFile("thumbnail")
+	if thumbnail != nil {
+		defer thumbnail.Close()
 	}
 	if err != nil && err != http.ErrMissingFile {
 		return err
 	}
-	if res, err := coreApi.Project().Create(forUser, r.FormValue("name"), fileName, file); err != nil {
+	if res, err := coreApi.Project().Create(forUser, r.FormValue("name"), r.FormValue("thumbnailType"), thumbnail); err != nil {
 		return err
 	} else {
 		writeJson(w, res, log)
@@ -240,19 +235,15 @@ func projectSetName(coreApi core.CoreApi, forUser string, session session.Sessio
 	}
 }
 
-func projectSetImage(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	file, header, err := r.FormFile("file")
-	if file != nil {
-		defer file.Close()
-	}
-	fileName := ""
-	if header != nil {
-		fileName = header.Filename
+func projectSetThumbnail(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	thumbnail, _, err := r.FormFile("thumbnail")
+	if thumbnail != nil {
+		defer thumbnail.Close()
 	}
 	if err != nil && err != http.ErrMissingFile {
 		return err
 	}
-	if err := coreApi.Project().SetImage(forUser, r.FormValue("id"), fileName, file); err != nil {
+	if err := coreApi.Project().SetImage(forUser, r.FormValue("id"), r.FormValue("thumbnailType"), thumbnail); err != nil {
 		return err
 	} else {
 		return nil
@@ -350,11 +341,11 @@ func projectGetMembershipInvites(coreApi core.CoreApi, forUser string, session s
 	}
 }
 
-func projectGetImage(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+func projectGetThumbnail(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	pathSegments := strings.Split(r.URL.Path, "/")
-	id := pathSegments[len(pathSegments)-1]
-	ext := filepath.Ext(id)
-	id = strings.Split(id, ".")[0]
+	id := pathSegments[len(pathSegments)-3]
+	mimeType := pathSegments[len(pathSegments)-2]
+	mimeSubtype := pathSegments[len(pathSegments)-1]
 	var res *http.Response
 	var err error
 	if res, err = coreApi.Project().GetImage(forUser, id); res != nil && res.Body != nil {
@@ -365,7 +356,7 @@ func projectGetImage(coreApi core.CoreApi, forUser string, session session.Sessi
 	} else if _, err := io.Copy(w, res.Body); err != nil {
 		return err
 	} else {
-		w.Header().Add("Content-Type", "image/"+ext)
+		w.Header().Add("Content-Type", mimeType+"/"+mimeSubtype)
 		return nil
 	}
 }
@@ -465,19 +456,15 @@ func treeNodeCreateDocument(coreApi core.CoreApi, forUser string, session sessio
 		return err
 	}
 
-	thumbnail, header, err := r.FormFile("thumbnail")
+	thumbnail, _, err := r.FormFile("thumbnail")
 	if thumbnail != nil {
 		defer thumbnail.Close()
-	}
-	thumbnailName := ""
-	if header != nil {
-		thumbnailName = header.Filename
 	}
 	if err != nil && err != http.ErrMissingFile {
 		return err
 	}
 
-	if res, err := coreApi.TreeNode().CreateDocument(forUser, r.FormValue("parent"), r.FormValue("name"), r.FormValue("uploadComment"), fileName, file, thumbnailName, thumbnail); err != nil {
+	if res, err := coreApi.TreeNode().CreateDocument(forUser, r.FormValue("parent"), r.FormValue("name"), r.FormValue("uploadComment"), r.FormValue("fileType"), fileName, file, r.FormValue("thumbnailType"), thumbnail); err != nil {
 		return err
 	} else {
 		writeJson(w, res, log)
@@ -609,19 +596,15 @@ func documentVersionCreate(coreApi core.CoreApi, forUser string, session session
 		return err
 	}
 
-	thumbnail, header, err := r.FormFile("thumbnail")
+	thumbnail, _, err := r.FormFile("thumbnail")
 	if thumbnail != nil {
 		defer thumbnail.Close()
-	}
-	thumbnailName := ""
-	if header != nil {
-		thumbnailName = header.Filename
 	}
 	if err != nil && err != http.ErrMissingFile {
 		return err
 	}
 
-	if res, err := coreApi.DocumentVersion().Create(forUser, r.FormValue("document"), r.FormValue("uploadComment"), fileName, file, thumbnailName, thumbnail); err != nil {
+	if res, err := coreApi.DocumentVersion().Create(forUser, r.FormValue("document"), r.FormValue("uploadComment"), r.FormValue("fileType"), fileName, file, r.FormValue("thumbnailType"), thumbnail); err != nil {
 		return err
 	} else {
 		writeJson(w, res, log)

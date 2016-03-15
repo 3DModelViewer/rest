@@ -188,10 +188,15 @@ paths:
           required: true
           type: string
         - in: formData
-          name: file
-          description: image file for the project profile
+          name: thumbnail
+          description: image file for the project thumbnail
           required: false
           type: file
+        - in: formData
+          name: thumbnailType
+          description: thumbnail file mime type
+          required: false
+          type: string
       tags:
         - project
       responses:
@@ -229,9 +234,9 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
-  /project/setImage:
+  /project/setThumbnail:
     post:
-      summary: Set the project image.
+      summary: Set the project thumbnail.
       consumes:
         - application/x-www-form-urlencoded
       parameters:
@@ -241,10 +246,15 @@ paths:
           required: true
           type: string
         - in: formData
-          name: file
-          description: image file for the project profile
+          name: thumbnail
+          description: thumbnail file for the project profile
           required: true
           type: file
+        - in: formData
+          name: thumbnailType
+          description: thumbnail file mime type
+          required: false
+          type: string
       tags:
         - project
       responses:
@@ -476,9 +486,9 @@ paths:
               description: Unexpected error
               schema:
                 $ref: '#/definitions/error'
-  /project/getImage/{id}.{ext}:
+  /project/getThumbnail/{id}/{type}/{subtype}:
     get:
-      summary: Get the project image.
+      summary: Get the project thumbnail.
       parameters:
         - in: path
           name: id
@@ -486,9 +496,14 @@ paths:
           description: The project id
           required: true
         - in: path
-          name: ext
+          name: type
           type: string
-          description: The image extension
+          description: The mime type type of the thumbnail
+          required: true
+        - in: path
+          name: subtype
+          type: string
+          description: The mime type subtype of the thumbnail
           required: true
       tags:
         - project
@@ -735,10 +750,20 @@ paths:
           required: true
           type: file
         - in: formData
+          name: fileType
+          description: document file mime type if known
+          required: true
+          type: string
+        - in: formData
           name: thumbnail
           description: thumbnail file
           required: false
           type: file
+        - in: formData
+          name: thumbnailType
+          description: thumbnail file mime type
+          required: false
+          type: string
       tags:
         - treeNode
         - documentVersion
@@ -1050,10 +1075,20 @@ paths:
           required: true
           type: file
         - in: formData
+          name: fileType
+          description: document file mime type if known
+          required: true
+          type: string
+        - in: formData
           name: thumbnail
           description: thumbnail file for new version
           required: false
           type: file
+        - in: formData
+          name: thumbnailType
+          description: thumbnail file mime type
+          required: false
+          type: string
       tags:
         - documentVersion
       responses:
