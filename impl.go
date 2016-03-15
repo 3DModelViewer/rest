@@ -243,7 +243,7 @@ func projectSetThumbnail(coreApi core.CoreApi, forUser string, session session.S
 	if err != nil && err != http.ErrMissingFile {
 		return err
 	}
-	if err := coreApi.Project().SetImage(forUser, r.FormValue("id"), r.FormValue("thumbnailType"), thumbnail); err != nil {
+	if err := coreApi.Project().SetThumbnail(forUser, r.FormValue("id"), r.FormValue("thumbnailType"), thumbnail); err != nil {
 		return err
 	} else {
 		return nil
@@ -348,7 +348,7 @@ func projectGetThumbnail(coreApi core.CoreApi, forUser string, session session.S
 	mimeSubtype := pathSegments[len(pathSegments)-1]
 	var res *http.Response
 	var err error
-	if res, err = coreApi.Project().GetImage(forUser, id); res != nil && res.Body != nil {
+	if res, err = coreApi.Project().GetThumbnail(forUser, id); res != nil && res.Body != nil {
 		defer res.Body.Close()
 	}
 	if err != nil {
