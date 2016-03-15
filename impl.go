@@ -464,7 +464,20 @@ func treeNodeCreateDocument(coreApi core.CoreApi, forUser string, session sessio
 	if err != nil {
 		return err
 	}
-	if res, err := coreApi.TreeNode().CreateDocument(forUser, r.FormValue("parent"), r.FormValue("name"), r.FormValue("uploadComment"), fileName, file); err != nil {
+
+	thumbnail, header, err := r.FormFile("thumbnail")
+	if thumbnail != nil {
+		defer thumbnail.Close()
+	}
+	thumbnailName := ""
+	if header != nil {
+		thumbnailName = header.Filename
+	}
+	if err != nil && err != http.ErrMissingFile {
+		return err
+	}
+
+	if res, err := coreApi.TreeNode().CreateDocument(forUser, r.FormValue("parent"), r.FormValue("name"), r.FormValue("uploadComment"), fileName, file, thumbnailName, thumbnail); err != nil {
 		return err
 	} else {
 		writeJson(w, res, log)
@@ -595,7 +608,20 @@ func documentVersionCreate(coreApi core.CoreApi, forUser string, session session
 	if err != nil {
 		return err
 	}
-	if res, err := coreApi.DocumentVersion().Create(forUser, r.FormValue("document"), r.FormValue("uploadComment"), fileName, file); err != nil {
+
+	thumbnail, header, err := r.FormFile("thumbnail")
+	if thumbnail != nil {
+		defer thumbnail.Close()
+	}
+	thumbnailName := ""
+	if header != nil {
+		thumbnailName = header.Filename
+	}
+	if err != nil && err != http.ErrMissingFile {
+		return err
+	}
+
+	if res, err := coreApi.DocumentVersion().Create(forUser, r.FormValue("document"), r.FormValue("uploadComment"), fileName, file, thumbnailName, thumbnail); err != nil {
 		return err
 	} else {
 		writeJson(w, res, log)

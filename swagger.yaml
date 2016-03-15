@@ -734,6 +734,11 @@ paths:
           description: document file
           required: true
           type: file
+        - in: formData
+          name: thumbnail
+          description: thumbnail file
+          required: false
+          type: file
       tags:
         - treeNode
         - documentVersion
@@ -1043,6 +1048,11 @@ paths:
           name: file
           description: document file for new version
           required: true
+          type: file
+        - in: formData
+          name: thumbnail
+          description: thumbnail file for new version
+          required: false
           type: file
       tags:
         - documentVersion
