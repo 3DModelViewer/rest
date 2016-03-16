@@ -1468,9 +1468,9 @@ definitions:
       created:
         type: string
         description: The datetime when the project was created in RFC 3339 format
-      imageFileExtension:
+      thumbnailType:
         type: string
-        description: The projects image file extension
+        description: The projects thumbnail mime type
   projectInUserContext:
     type: object
     allOf: 
@@ -1523,6 +1523,9 @@ definitions:
       uploadedBy:
         type: string
         description: The modelhub id of the uploading user
+      fileType:
+        type: string
+        description: The file mime type (if known)
       fileExtension:
         type: string
         description: The original uploaded file extension
@@ -1530,6 +1533,9 @@ definitions:
         type: string
         description: The translation status of the docVer
         enum: ["wont_register", "failed_to_register", "registered", "pending", "inprogress", "success", "failed"]
+      thumbnailTypeType:
+        type: string
+        description: The thumbnail mime type (if there is a thumbnail)
   sheet:
     type: object
     properties:
