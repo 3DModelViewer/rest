@@ -37,6 +37,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/project/removeUsers", handlerWrapper(coreApi, getSession, projectRemoveUsers, log))
 	mux.HandleFunc("/api/v1/project/acceptInvite", handlerWrapper(coreApi, getSession, projectAcceptInvite, log))
 	mux.HandleFunc("/api/v1/project/declineInvite", handlerWrapper(coreApi, getSession, projectDeclineInvite, log))
+	mux.HandleFunc("/api/v1/project/getRole", handlerWrapper(coreApi, getSession, projectGetRole, log))
 	mux.HandleFunc("/api/v1/project/getMemberships", handlerWrapper(coreApi, getSession, projectGetMemberships, log))
 	mux.HandleFunc("/api/v1/project/getMembershipInvites", handlerWrapper(coreApi, getSession, projectGetMembershipInvites, log))
 	mux.HandleFunc("/api/v1/project/getThumbnail/", handlerWrapper(coreApi, getSession, projectGetThumbnail, log))
@@ -302,6 +303,20 @@ func projectDeclineInvite(coreApi core.CoreApi, forUser string, session session.
 	} else if err := coreApi.Project().DeclineInvite(forUser, args.Id); err != nil {
 		return err
 	} else {
+		return nil
+	}
+}
+
+func projectGetRole(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id string `json:"id"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.Project().GetRole(forUser, args.Id); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
 		return nil
 	}
 }

@@ -386,6 +386,32 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /project/getRole:
+    post:
+      summary: Get the users role for a given project.
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The project id.
+          required: true
+      tags:
+        - project
+        - permission
+      responses:
+        200:
+          schema:
+            type: string
+            description: the users role within the given project
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
   /project/getMemberships:
       post:
         summary: Get a list of user ids and their roles within a given project.
