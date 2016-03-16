@@ -59,6 +59,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/documentVersion/get", handlerWrapper(coreApi, getSession, documentVersionGet, log))
 	mux.HandleFunc("/api/v1/documentVersion/getForDocument", handlerWrapper(coreApi, getSession, documentVersionGetForDocument, log))
 	mux.HandleFunc("/api/v1/documentVersion/getSeedFile/", handlerWrapper(coreApi, getSession, documentVersionGetSeedFile, log))
+	mux.HandleFunc("/api/v1/documentVersion/getThumbnail/", handlerWrapper(coreApi, getSession, documentVersionGetThumbnail, log))
 	//sheet
 	mux.HandleFunc("/api/v1/sheet/setName", handlerWrapper(coreApi, getSession, sheetSetName, log))
 	mux.HandleFunc(sheetGetItemPath, vadaHandlerWrapper(coreApi, getSession, vada, sheetGetItem, log))
@@ -656,6 +657,26 @@ func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session se
 	} else if _, err := io.Copy(w, res.Body); err != nil {
 		return err
 	} else {
+		return nil
+	}
+}
+
+func documentVersionGetThumbnail(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	pathSegments := strings.Split(r.URL.Path, "/")
+	id := pathSegments[len(pathSegments)-3]
+	mimeType := pathSegments[len(pathSegments)-2]
+	mimeSubtype := pathSegments[len(pathSegments)-1]
+	var res *http.Response
+	var err error
+	if res, err = coreApi.DocumentVersion().GetThumbnail(forUser, id); res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
+	if err != nil {
+		return err
+	} else if _, err := io.Copy(w, res.Body); err != nil {
+		return err
+	} else {
+		w.Header().Add("Content-Type", mimeType+"/"+mimeSubtype)
 		return nil
 	}
 }
