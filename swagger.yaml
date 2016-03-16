@@ -1193,6 +1193,34 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /documentVersion/getThumbnail/{id}/{type}/{subtype}:
+    get:
+      summary: Get document version thumbnail.
+      parameters:
+        - in: path
+          name: id
+          type: string
+          description: The documentVersion id
+          required: true
+        - in: path
+          name: type
+          type: string
+          description: The mime type type of the thumbnail
+          required: true
+        - in: path
+          name: subtype
+          type: string
+          description: The mime type subtype of the thumbnail
+          required: true
+      tags:
+        - documentVersion
+      responses:
+        200:
+          description: Will contain the thumbnail image file
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
   /sheet/setName:
     post:
       summary: set the sheet name.
