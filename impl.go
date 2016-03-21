@@ -55,6 +55,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/treeNode/getParents", handlerWrapper(coreApi, getSession, treeNodeGetParents, log))
 	mux.HandleFunc("/api/v1/treeNode/globalSearch", handlerWrapper(coreApi, getSession, treeNodeGlobalSearch, log))
 	mux.HandleFunc("/api/v1/treeNode/projectSearch", handlerWrapper(coreApi, getSession, treeNodeProjectSearch, log))
+	mux.HandleFunc("/api/v1/treeNode/GetChildrenDocumentNodes", handlerWrapper(coreApi, getSession, treeNodeGetChildrenDocumentNodes, log))
 	//documentVersion
 	mux.HandleFunc("/api/v1/documentVersion/create", handlerWrapper(coreApi, getSession, documentVersionCreate, log))
 	mux.HandleFunc("/api/v1/documentVersion/get", handlerWrapper(coreApi, getSession, documentVersionGet, log))
@@ -592,6 +593,23 @@ func treeNodeProjectSearch(coreApi core.CoreApi, forUser string, session session
 	if err := readJson(r, args); err != nil {
 		return err
 	} else if res, totalResults, err := coreApi.TreeNode().ProjectSearch(forUser, args.Project, args.Search, treenode.NodeType(args.NodeType), args.Offset, args.Limit, treenode.SortBy(args.SortBy)); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func treeNodeGetChildrenDocumentNodes(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Id       string `json:"id"`
+		Offset   int    `json:"offset"`
+		Limit    int    `json:"limit"`
+		SortBy   string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.TreeNode().GetChildrenDocumentNodes(forUser, args.Id, args.Offset, args.Limit, treenode.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
