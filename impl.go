@@ -55,7 +55,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/treeNode/getParents", handlerWrapper(coreApi, getSession, treeNodeGetParents, log))
 	mux.HandleFunc("/api/v1/treeNode/globalSearch", handlerWrapper(coreApi, getSession, treeNodeGlobalSearch, log))
 	mux.HandleFunc("/api/v1/treeNode/projectSearch", handlerWrapper(coreApi, getSession, treeNodeProjectSearch, log))
-	mux.HandleFunc("/api/v1/treeNode/GetChildrenDocumentNodes", handlerWrapper(coreApi, getSession, treeNodeGetChildrenDocumentNodes, log))
+	mux.HandleFunc("/api/v1/treeNode/getChildrenDocumentNodes", handlerWrapper(coreApi, getSession, treeNodeGetChildrenDocumentNodes, log))
 	//documentVersion
 	mux.HandleFunc("/api/v1/documentVersion/create", handlerWrapper(coreApi, getSession, documentVersionCreate, log))
 	mux.HandleFunc("/api/v1/documentVersion/get", handlerWrapper(coreApi, getSession, documentVersionGet, log))
