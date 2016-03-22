@@ -70,7 +70,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, getLates
 	mux.HandleFunc("/api/v1/sheet/globalSearch", handlerWrapper(coreApi, getSession, sheetGlobalSearch, log))
 	mux.HandleFunc("/api/v1/sheet/projectSearch", handlerWrapper(coreApi, getSession, sheetProjectSearch, log))
 	//helpers
-	mux.HandleFunc("/api/v1/helper/treeNode/getChildrenDocumentsWithLatestVersion", handlerWrapper(coreApi, getSession, helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOut), log))
+	mux.HandleFunc("/api/v1/helper/treeNode/getChildrenDocumentsWithLatestVersionAndFirstSheet", handlerWrapper(coreApi, getSession, helperTreeNodeGetChildrenDocumentsWithLatestVersionAndFirstSheet(getLatestVersionsTimeOut), log))
 
 	return mux
 }
@@ -805,7 +805,7 @@ func sheetProjectSearch(coreApi core.CoreApi, forUser string, session session.Se
 	}
 }
 
-func helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOut time.Duration) handler {
+func helperTreeNodeGetChildrenDocumentsWithLatestVersionAndFirstSheet(getLatestVersionsTimeOut time.Duration) handler {
 	return func(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 		args := &struct {
 			Id     string `json:"id"`
@@ -820,29 +820,38 @@ func helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOu
 		} else {
 			countDown := len(docs)
 			timeOutChan := time.After(getLatestVersionsTimeOut)
-			res := make([]*helperDocNode, 0, totalResults)
+			res := make([]*documentNode, 0, totalResults)
 			resVerChan := make(chan *struct{
 				resIdx int
-				ver *documentversion.DocumentVersion
+				latestVersion *latestVersion
 				err error
 			})
 			for idx, doc := range docs {
-				res = append(res, &helperDocNode{
+				res = append(res, &documentNode{
 					TreeNode: doc,
 				})
 				go func(idx int, doc *treenode.TreeNode) {
-					vers, _, err := coreApi.DocumentVersion().GetForDocument(forUser, doc.Id, 0, 1, documentversion.VersionDesc)
+					vers, _, er := coreApi.DocumentVersion().GetForDocument(forUser, doc.Id, 0, 1, documentversion.VersionDesc)
 					resVer := &struct{
 						resIdx int
-						ver *documentversion.DocumentVersion
+						latestVersion *latestVersion
 						err error
 					}{
 						resIdx: idx,
-						ver: nil,
-						err: err,
+						latestVersion: nil,
+						err: er,
 					}
 					if vers != nil && len(vers) > 0 {
-						resVer.ver = vers[0]
+						ver := vers[0]
+						resVer.latestVersion = &latestVersion{
+							DocumentVersion: ver,
+						}
+						if ver.FileType == "lmv" && ver.Status == "success" {
+							sheets, _, _ := coreApi.Sheet().GetForDocumentVersion(forUser, ver.Id, 0, 1, sheet.NameAsc)
+							if sheets != nil && len(sheets) > 0 {
+								resVer.latestVersion.FirstSheet = sheets[0]
+							}
+						}
 					}
 					resVerChan <- resVer
 				}(idx, doc)
@@ -852,8 +861,8 @@ func helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOu
 				select {
 				case resVer := <- resVerChan:
 					countDown--
-					if resVer.ver != nil {
-						res[resVer.resIdx].LatestVersion = resVer.ver
+					if resVer.latestVersion != nil {
+						res[resVer.resIdx].LatestVersion = resVer.latestVersion
 					}
 				case <-timeOutChan:
 					log.Warning("RestApi helperTreeNodeGetChildrenDocumentsWithLatestVersion timed out after %v with %d open latest version requests awaiting response", getLatestVersionsTimeOut, countDown)
@@ -869,9 +878,14 @@ func helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOu
 	}
 }
 
-type helperDocNode struct {
+type documentNode struct {
 	*treenode.TreeNode
-	LatestVersion *documentversion.DocumentVersion `json:"latestVersion"`
+	LatestVersion *latestVersion `json:"latestVersion"`
+}
+
+type latestVersion struct{
+	*documentversion.DocumentVersion
+	FirstSheet *sheet.Sheet	`json:"firstSheet"`
 }
 
 //END Handlers
