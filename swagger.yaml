@@ -1077,52 +1077,6 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
-  /treeNode/getChildrenDocumentNodes:
-    post:
-      summary: Get a list of child document nodes with latest version data.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          schema:
-            type: object
-            properties:
-              id:
-                type: string
-                description: The node id to get children of.
-              offset:
-                type: integer
-                description: The offset to start extracting results from.
-              limit:
-                type: integer
-                description: The maximum number of results to return.
-              sortBy:
-                type: string
-                description: sort by field.
-                enum: ["nameAsc", "nameDesc"]
-          required: true
-      tags:
-        - treeNode
-        - documentVersion
-      responses:
-        200:
-          schema:
-            type: object
-            properties:
-              totalResults:
-                type: integer
-                description: The total number of results found in the query
-              results:
-                type: array
-                description: The extracted results given the initial query/filter/offset/limit/sortBy
-                items:
-                  $ref: '#/definitions/documentNode'
-        default:
-          description: Unexpected error
-          schema:
-            $ref: '#/definitions/error'
   /documentVersion/create:
     post:
       summary: Create a new document version.
@@ -1516,6 +1470,53 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /helper/treeNode/getChildrenDocumentsWithLatestVersion:
+    post:
+      summary: Get a list of child document nodes with latest version data.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The node id to get children of.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - helper
+        - treeNode
+        - documentVersion
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items:
+                  $ref: '#/definitions/documentNode'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
 definitions:
   user:
     type: object
@@ -1606,29 +1607,7 @@ definitions:
     - type: object
       properties:
         latestVersion:
-          type: object
-          properties:
-            id:
-              type: string
-              description: The latest documentVersion id
-            version:
-              type: string
-              description: the latest documentVersion version number
-            uploaded:
-              type: string
-              description: the latest documentVersion uploaded date
-            fileType:
-              type: string
-              description: the latest documentVersion file type
-            fileExtension:
-              type: string
-              description: the latest documentVersion file extension
-            status:
-              type: string
-              description: the latest documentVersion lmv translation status
-            thumbnailType:
-              type: string
-              description: the latest documentVersion thumbnail type
+        - $ref: '#/definitions/documentVersion'
   documentVersion:
     type: object
     properties:

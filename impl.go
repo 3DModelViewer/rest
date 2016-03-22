@@ -16,13 +16,14 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
 	sheetGetItemPath = "/api/v1/sheet/getItem/"
 )
 
-func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vada.VadaClient, log golog.Log) *http.ServeMux {
+func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, getLatestVersionsTimeOut time.Duration, vada vada.VadaClient, log golog.Log) *http.ServeMux {
 	mux := http.NewServeMux()
 	//user
 	mux.HandleFunc("/api/v1/user/getCurrent", handlerWrapper(coreApi, getSession, userGetCurrent, log))
@@ -55,7 +56,6 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/treeNode/getParents", handlerWrapper(coreApi, getSession, treeNodeGetParents, log))
 	mux.HandleFunc("/api/v1/treeNode/globalSearch", handlerWrapper(coreApi, getSession, treeNodeGlobalSearch, log))
 	mux.HandleFunc("/api/v1/treeNode/projectSearch", handlerWrapper(coreApi, getSession, treeNodeProjectSearch, log))
-	mux.HandleFunc("/api/v1/treeNode/getChildrenDocumentNodes", handlerWrapper(coreApi, getSession, treeNodeGetChildrenDocumentNodes, log))
 	//documentVersion
 	mux.HandleFunc("/api/v1/documentVersion/create", handlerWrapper(coreApi, getSession, documentVersionCreate, log))
 	mux.HandleFunc("/api/v1/documentVersion/get", handlerWrapper(coreApi, getSession, documentVersionGet, log))
@@ -64,11 +64,13 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/documentVersion/getThumbnail/", handlerWrapper(coreApi, getSession, documentVersionGetThumbnail, log))
 	//sheet
 	mux.HandleFunc("/api/v1/sheet/setName", handlerWrapper(coreApi, getSession, sheetSetName, log))
-	mux.HandleFunc(sheetGetItemPath, vadaHandlerWrapper(coreApi, getSession, vada, sheetGetItem, log))
+	mux.HandleFunc(sheetGetItemPath, handlerWrapper(coreApi, getSession, sheetGetItem(vada), log))
 	mux.HandleFunc("/api/v1/sheet/get", handlerWrapper(coreApi, getSession, sheetGet, log))
 	mux.HandleFunc("/api/v1/sheet/getForDocumentVersion", handlerWrapper(coreApi, getSession, sheetGetForDocumentVersion, log))
 	mux.HandleFunc("/api/v1/sheet/globalSearch", handlerWrapper(coreApi, getSession, sheetGlobalSearch, log))
 	mux.HandleFunc("/api/v1/sheet/projectSearch", handlerWrapper(coreApi, getSession, sheetProjectSearch, log))
+	//helpers
+	mux.HandleFunc("/api/v1/helper/treeNode/getChildrenDocumentsWithLatestVersion", handlerWrapper(coreApi, getSession, helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOut), log))
 
 	return mux
 }
@@ -92,24 +94,6 @@ func handlerWrapper(coreApi core.CoreApi, getSession session.SessionGetter, hand
 }
 
 type handler func(core.CoreApi, string, session.Session, http.ResponseWriter, *http.Request, golog.Log) error
-
-func vadaHandlerWrapper(coreApi core.CoreApi, getSession session.SessionGetter, vada vada.VadaClient, handler vadaHandler, log golog.Log) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if session, err := getSession(w, r); err != nil {
-			writeError(w, err, log)
-		} else if session == nil {
-			writeError(w, errors.New("no session found"), log)
-		} else if forUser, err := session.User(); err != nil {
-			writeError(w, err, log)
-		} else if forUser == "" {
-			writeError(w, errors.New("no valid user id in session"), log)
-		} else if err := handler(coreApi, forUser, session, w, r, vada, log); err != nil {
-			writeError(w, err, log)
-		}
-	}
-}
-
-type vadaHandler func(core.CoreApi, string, session.Session, http.ResponseWriter, *http.Request, vada.VadaClient, golog.Log) error
 
 func writeJson(w http.ResponseWriter, src interface{}, log golog.Log) {
 	if b, err := json.Marshal(src); err != nil {
@@ -600,23 +584,6 @@ func treeNodeProjectSearch(coreApi core.CoreApi, forUser string, session session
 	}
 }
 
-func treeNodeGetChildrenDocumentNodes(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	args := &struct {
-		Id       string `json:"id"`
-		Offset   int    `json:"offset"`
-		Limit    int    `json:"limit"`
-		SortBy   string `json:"sortBy"`
-	}{}
-	if err := readJson(r, args); err != nil {
-		return err
-	} else if res, totalResults, err := coreApi.TreeNode().GetChildrenDocumentNodes(forUser, args.Id, args.Offset, args.Limit, treenode.SortBy(args.SortBy)); err != nil {
-		return err
-	} else {
-		writeOffsetJson(w, res, totalResults, log)
-		return nil
-	}
-}
-
 func documentVersionCreate(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	file, header, err := r.FormFile("file")
 	if file != nil {
@@ -728,46 +695,48 @@ func sheetSetName(coreApi core.CoreApi, forUser string, session session.Session,
 	}
 }
 
-func sheetGetItem(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, vada vada.VadaClient, log golog.Log) error {
-	id := r.URL.Path[len(sheetGetItemPath):]
-	path := ""
-	if slashIdx := strings.Index(id, "/"); slashIdx == -1 {
-		return errors.New("can't find item path in sheetGetItem call")
-	} else {
-		path = id[slashIdx:]
-		id = id[:slashIdx]
-	}
-	baseUrn := ""
-	var res *http.Response
-	var err error
-	if baseUrn, err = session.GetSheetBaseUrn(id); err != nil {
-		if res, baseUrn, err = coreApi.Sheet().GetItem(forUser, id, path); err == nil {
-			session.SetAccessedSheet(id, baseUrn)
+func sheetGetItem(vada vada.VadaClient) handler {
+	return func(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+		id := r.URL.Path[len(sheetGetItemPath):]
+		path := ""
+		if slashIdx := strings.Index(id, "/"); slashIdx == -1 {
+			return errors.New("can't find item path in sheetGetItem call")
+		} else {
+			path = id[slashIdx:]
+			id = id[:slashIdx]
 		}
-	} else {
-		log.Info("RestApi session recentlyAccessSheet was found :)") //TODO delete this once verified it works
-		res, err = vada.GetSheetItem(baseUrn + path)
-	}
-	if res != nil && res.Body != nil {
-		defer res.Body.Close()
-		contentType := strings.Join(res.Header["Content-Type"], ",")
-		w.Header().Add("Content-Type", contentType)
-		if contentType == "application/json" {
-			log.Info("RestApi making json lmv safe") //TODO delete this once verifieid it works
-			if js, err := sj.FromReadCloser(res.Body); err != nil {
-				return err
-			} else {
-				unsafeJsonStr, _ := js.ToString()
-				log.Info("unsafe json %v", unsafeJsonStr) //TODO delete this once verifieid it works
-				safeJsonStr := strings.Replace(unsafeJsonStr, baseUrn+"/", sheetGetItemPath, -1)
-				log.Info("safe json %v", safeJsonStr) //TODO delete this once verifieid it works
-				writeJson(w, safeJsonStr, log)
+		baseUrn := ""
+		var res *http.Response
+		var err error
+		if baseUrn, err = session.GetSheetBaseUrn(id); err != nil {
+			if res, baseUrn, err = coreApi.Sheet().GetItem(forUser, id, path); err == nil {
+				session.SetAccessedSheet(id, baseUrn)
 			}
 		} else {
-			_, err = io.Copy(w, res.Body)
+			log.Info("RestApi session recentlyAccessSheet was found :)") //TODO delete this once verified it works
+			res, err = vada.GetSheetItem(baseUrn + path)
 		}
+		if res != nil && res.Body != nil {
+			defer res.Body.Close()
+			contentType := strings.Join(res.Header["Content-Type"], ",")
+			w.Header().Add("Content-Type", contentType)
+			if contentType == "application/json" {
+				log.Info("RestApi making json lmv safe") //TODO delete this once verifieid it works
+				if js, err := sj.FromReadCloser(res.Body); err != nil {
+					return err
+				} else {
+					unsafeJsonStr, _ := js.ToString()
+					log.Info("unsafe json %v", unsafeJsonStr) //TODO delete this once verifieid it works
+					safeJsonStr := strings.Replace(unsafeJsonStr, baseUrn+"/", sheetGetItemPath, -1)
+					log.Info("safe json %v", safeJsonStr) //TODO delete this once verifieid it works
+					writeJson(w, safeJsonStr, log)
+				}
+			} else {
+				_, err = io.Copy(w, res.Body)
+			}
+		}
+		return err
 	}
-	return err
 }
 
 func sheetGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
@@ -834,6 +803,77 @@ func sheetProjectSearch(coreApi core.CoreApi, forUser string, session session.Se
 		writeOffsetJson(w, res, totalResults, log)
 		return nil
 	}
+}
+
+func helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOut time.Duration) handler {
+	return func(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+		args := &struct {
+			Id     string `json:"id"`
+			Offset int    `json:"offset"`
+			Limit  int    `json:"limit"`
+			SortBy string `json:"sortBy"`
+		}{}
+		if err := readJson(r, args); err != nil {
+			return err
+		} else if docs, totalResults, err := coreApi.TreeNode().GetChildren(forUser, args.Id, "document", args.Offset, args.Limit, treenode.SortBy(args.SortBy)); err != nil {
+			return err
+		} else {
+			countDown := len(docs)
+			timeOutChan := time.After(getLatestVersionsTimeOut)
+			res := make([]*helperDocNode, 0, totalResults)
+			resVerChan := make(chan *struct{
+				resIdx int
+				ver *documentversion.DocumentVersion
+				err error
+			})
+			for idx, doc := range docs {
+				res = append(res, &helperDocNode{
+					TreeNode: doc,
+				})
+				go func(idx int, doc *treenode.TreeNode) {
+					vers, _, err := coreApi.DocumentVersion().GetForDocument(forUser, doc.Id, 0, 1, documentversion.VersionDesc)
+					resVer := &struct{
+						resIdx int
+						ver *documentversion.DocumentVersion
+						err error
+					}{
+						resIdx: idx,
+						ver: nil,
+						err: err,
+					}
+					log.Warning("%v", vers)
+					if vers != nil && len(vers) > 0 {
+						resVer.ver = vers[0]
+					}
+					resVerChan <- resVer
+				}(idx, doc)
+			}
+			for countDown > 0 {
+				timedOut := false
+				select {
+				case resVer := <- resVerChan:
+					countDown--
+					log.Warning("%d", countDown)
+					if resVer.ver != nil {
+						res[resVer.resIdx].LatestVersion = resVer.ver
+					}
+				case <-timeOutChan:
+					log.Warning("RestApi helperTreeNodeGetChildrenDocumentsWithLatestVersion timed out after %v with %d open latest version requests awaiting response", getLatestVersionsTimeOut, countDown)
+					timedOut = true
+				}
+				if timedOut {
+					break
+				}
+			}
+			writeOffsetJson(w, res, totalResults, log)
+			return nil
+		}
+	}
+}
+
+type helperDocNode struct {
+	*treenode.TreeNode
+	LatestVersion *documentversion.DocumentVersion `json:"latestVersion"`
 }
 
 //END Handlers
