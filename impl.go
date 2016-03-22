@@ -841,7 +841,6 @@ func helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOu
 						ver: nil,
 						err: err,
 					}
-					log.Warning("%v", vers)
 					if vers != nil && len(vers) > 0 {
 						resVer.ver = vers[0]
 					}
@@ -853,7 +852,6 @@ func helperTreeNodeGetChildrenDocumentsWithLatestVersion(getLatestVersionsTimeOu
 				select {
 				case resVer := <- resVerChan:
 					countDown--
-					log.Warning("%d", countDown)
 					if resVer.ver != nil {
 						res[resVer.resIdx].LatestVersion = resVer.ver
 					}
