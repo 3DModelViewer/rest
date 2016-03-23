@@ -1470,7 +1470,7 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
-  /helper/treeNode/getChildrenDocumentsWithLatestVersion:
+  /helper/getChildrenDocumentsWithLatestVersionAndFirstSheetInfo:
     post:
       summary: Get a list of child document nodes with latest version data.
       consumes:
@@ -1482,9 +1482,9 @@ paths:
           schema:
             type: object
             properties:
-              id:
+              folder:
                 type: string
-                description: The node id to get children of.
+                description: The folder id to get children of.
               offset:
                 type: integer
                 description: The offset to start extracting results from.
@@ -1500,6 +1500,7 @@ paths:
         - helper
         - treeNode
         - documentVersion
+        - sheet
       responses:
         200:
           schema:
@@ -1600,6 +1601,44 @@ definitions:
       name:
         type: string
         description: The nodes name
+  firstSheet:
+    type: object
+    properties:
+      id:
+        type: string
+        description: The sheet id
+      thumbnails:
+        type: array
+        items:
+          type: string
+        description: The thumnail paths associated with the sheet
+      manifest:
+        type: string
+        description: The manifest path for the sheet (svf/f2d file)
+      role:
+        type: string
+        description: The role of the sheet
+        enum: ["2d", "3d"]
+  latestVersion:
+    type: object
+    properties:
+      id:
+        type: string
+        description: the latest versions id
+      fileType:
+        type: string
+        description: the latest versions fileType if known
+      fileExtension:
+        type: string
+        description: the latest versions file extension
+      status:
+        type: string
+        description: the latest versions lmv translation status
+      thumbnailType:
+        type: string
+        description: the latest versions thumbnail mimeType if it has one
+      firstSheet:
+        $ref: '#/definitions/firstSheet'
   documentNode:
     type: object
     allOf:
@@ -1607,7 +1646,7 @@ definitions:
     - type: object
       properties:
         latestVersion:
-        - $ref: '#/definitions/documentVersion'
+        - $ref: '#/definitions/latestVersion'
   documentVersion:
     type: object
     properties:
