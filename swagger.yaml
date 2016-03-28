@@ -1518,6 +1518,53 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /helper/getDocumentVersionsWithFirstSheetInfo:
+    post:
+      summary: Get a list of document versions with first sheet data.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              folder:
+                type: string
+                description: The document id to get versions of.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["versionAsc", "versionDesc"]
+          required: true
+      tags:
+        - helper
+        - documentVersion
+        - sheet
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items:
+                  $ref: '#/definitions/helperDocumentVersion'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
 definitions:
   user:
     type: object
@@ -1647,6 +1694,14 @@ definitions:
       properties:
         latestVersion:
         - $ref: '#/definitions/latestVersion'
+  helperDocumentVersion:
+    type: object
+    allOf:
+    - $ref: '#/definitions/documentVersion'
+    - type: object
+      properties:
+        firstSheet:
+        - $ref: '#/definitions/firstSheet'
   documentVersion:
     type: object
     properties:

@@ -71,6 +71,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/sheet/projectSearch", handlerWrapper(coreApi, getSession, sheetProjectSearch, log))
 	//helpers
 	mux.HandleFunc("/api/v1/helper/getChildrenDocumentsWithLatestVersionAndFirstSheetInfo", handlerWrapper(coreApi, getSession, helperGetChildrenDocumentsWithLatestVersionAndFirstSheetInfo, log))
+	mux.HandleFunc("/api/v1/helper/getDocumentVersionsWithFirstSheetInfo", handlerWrapper(coreApi, getSession, helperGetDocumentVersionsWithFirstSheetInfo, log))
 
 	return mux
 }
@@ -818,6 +819,23 @@ func helperGetChildrenDocumentsWithLatestVersionAndFirstSheetInfo(coreApi core.C
 	if err := readJson(r, args); err != nil {
 		return err
 	} else if res, totalResults, err := coreApi.Helper().GetChildrenDocumentsWithLatestVersionAndFirstSheetInfo(forUser, args.Folder, args.Offset, args.Limit, helper.SortBy(args.SortBy)); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func helperGetDocumentVersionsWithFirstSheetInfo(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Document     string `json:"document"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Helper().GetDocumentVersionsWithFirstSheetInfo(forUser, args.Document, args.Offset, args.Limit, helper.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
