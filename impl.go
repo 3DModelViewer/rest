@@ -79,6 +79,9 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 
 func handlerWrapper(coreApi core.CoreApi, getSession session.SessionGetter, handler handler, log golog.Log) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r != nil && r.Body != nil {
+			defer r.Body.Close()
+		}
 		if session, err := getSession(w, r); err != nil {
 			writeError(w, err, log)
 		} else if session == nil {
