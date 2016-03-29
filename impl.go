@@ -650,7 +650,10 @@ func documentVersionGetForDocument(coreApi core.CoreApi, forUser string, session
 
 func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	pathSegments := strings.Split(r.URL.Path, "/")
-	id := pathSegments[len(pathSegments)-1]
+	id := pathSegments[5]
+	if strings.Contains(id, ".") {
+		id = strings.Split(id, ".")[0]
+	}
 	var res *http.Response
 	var err error
 	if res, err = coreApi.DocumentVersion().GetSeedFile(forUser, id); res != nil && res.Body != nil {
@@ -661,6 +664,9 @@ func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session se
 	} else if _, err := io.Copy(w, res.Body); err != nil {
 		return err
 	} else {
+		if len(pathSegments) == 8 {
+			w.Header().Add("Content-Type", pathSegments[6]+"/"+pathSegments[7])
+		}
 		return nil
 	}
 }

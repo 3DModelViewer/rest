@@ -1201,7 +1201,7 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
-  /documentVersion/getSeedFile/{id}:
+  /documentVersion/getSeedFile/{id}.{ext}/{type}/{subtype}:
     get:
       summary: Get document version seed file.
       parameters:
@@ -1210,6 +1210,21 @@ paths:
           type: string
           description: The documentVersion id
           required: true
+        - in: path
+          name: ext
+          type: string
+          description: The documentVersion file extension
+          required: false
+        - in: path
+          name: type
+          type: string
+          description: The documentVersion mimeType type
+          required: false
+        - in: path
+          name: subtype
+          type: string
+          description: The documentVersion mimeType subtype
+          required: false
       tags:
         - documentVersion
       responses:
@@ -1276,7 +1291,7 @@ paths:
             $ref: '#/definitions/error'
   /sheet/getItem/{id}/{path}:
     get:
-      summary: Get document version seed file.
+      summary: Get sheet item.
       parameters:
         - in: path
           name: id
