@@ -12,7 +12,6 @@ import (
 	"github.com/modelhub/core/documentversion"
 	"github.com/modelhub/core/sheet"
 	"github.com/robsix/golog"
-	sj "github.com/robsix/json"
 	"io"
 	"net/http"
 	"strings"
@@ -723,27 +722,13 @@ func sheetGetItem(vada vada.VadaClient) handler {
 				session.SetAccessedSheet(id, baseUrn)
 			}
 		} else {
-			log.Info("RestApi session recentlyAccessSheet was found :)") //TODO delete this once verified it works
 			res, err = vada.GetSheetItem(baseUrn + path)
 		}
 		if res != nil && res.Body != nil {
 			defer res.Body.Close()
 			contentType := strings.Join(res.Header["Content-Type"], ",")
 			w.Header().Add("Content-Type", contentType)
-			if contentType == "application/json" {
-				log.Info("RestApi making json lmv safe") //TODO delete this once verifieid it works
-				if js, err := sj.FromReadCloser(res.Body); err != nil {
-					return err
-				} else {
-					unsafeJsonStr, _ := js.ToString()
-					log.Info("unsafe json %v", unsafeJsonStr) //TODO delete this once verifieid it works
-					safeJsonStr := strings.Replace(unsafeJsonStr, baseUrn+"/", sheetGetItemPath, -1)
-					log.Info("safe json %v", safeJsonStr) //TODO delete this once verifieid it works
-					writeJson(w, safeJsonStr, log)
-				}
-			} else {
-				_, err = io.Copy(w, res.Body)
-			}
+			_, err = io.Copy(w, res.Body)
 		}
 		return err
 	}
