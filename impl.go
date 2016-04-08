@@ -658,14 +658,22 @@ func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session se
 	if res, err = coreApi.DocumentVersion().GetSeedFile(forUser, id); res != nil && res.Body != nil {
 		defer res.Body.Close()
 	}
+
+	if len(pathSegments) == 8 {
+		w.Header().Add("Content-Type", pathSegments[6]+"/"+pathSegments[7])
+	} else {
+		w.Header().Add("Content-Type", res.Header.Get("Content-Type"))
+		w.Header().Add("Content-Disposition", "attachment")
+	}
+	if res.Header.Get("Content-Length") != "" {
+		w.Header().Add("Content-Length", res.Header.Get("Content-Length"))
+	}
+
 	if err != nil {
 		return err
 	} else if _, err := io.Copy(w, res.Body); err != nil {
 		return err
 	} else {
-		if len(pathSegments) == 8 {
-			w.Header().Add("Content-Type", pathSegments[6]+"/"+pathSegments[7])
-		}
 		return nil
 	}
 }
