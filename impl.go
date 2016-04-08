@@ -727,7 +727,15 @@ func sheetGetItem(vada vada.VadaClient) handler {
 		if res != nil && res.Body != nil {
 			defer res.Body.Close()
 			contentType := strings.Join(res.Header["Content-Type"], ",")
-			w.Header().Add("Content-Type", contentType)
+			if contentType != "" {
+				w.Header().Add("Content-Type", contentType)
+			}
+			contentEncoding := strings.Join(res.Header["Content-Encoding"], ",")
+			if contentEncoding != "" {
+				w.Header().Add("Content-Encoding", contentEncoding)
+			} else if strings.HasSuffix(path, ".gz") || strings.HasSuffix(path, ".bin") || strings.HasSuffix(path, ".pack") {
+				w.Header().Add("Content-Encoding", "gzip")
+			}
 			_, err = io.Copy(w, res.Body)
 		}
 		return err
