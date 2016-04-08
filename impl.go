@@ -355,12 +355,12 @@ func projectGetThumbnail(coreApi core.CoreApi, forUser string, session session.S
 	if res, err = coreApi.Project().GetThumbnail(forUser, id); res != nil && res.Body != nil {
 		defer res.Body.Close()
 	}
+	w.Header().Add("Content-Type", mimeType+"/"+mimeSubtype)
 	if err != nil {
 		return err
 	} else if _, err := io.Copy(w, res.Body); err != nil {
 		return err
 	} else {
-		w.Header().Add("Content-Type", mimeType+"/"+mimeSubtype)
 		return nil
 	}
 }
@@ -688,12 +688,12 @@ func documentVersionGetThumbnail(coreApi core.CoreApi, forUser string, session s
 	if res, err = coreApi.DocumentVersion().GetThumbnail(forUser, id); res != nil && res.Body != nil {
 		defer res.Body.Close()
 	}
+	w.Header().Add("Content-Type", mimeType+"/"+mimeSubtype)
 	if err != nil {
 		return err
 	} else if _, err := io.Copy(w, res.Body); err != nil {
 		return err
 	} else {
-		w.Header().Add("Content-Type", mimeType+"/"+mimeSubtype)
 		return nil
 	}
 }
@@ -734,13 +734,11 @@ func sheetGetItem(vada vada.VadaClient) handler {
 		}
 		if res != nil && res.Body != nil {
 			defer res.Body.Close()
-			contentType := strings.Join(res.Header["Content-Type"], ",")
-			if contentType != "" {
-				w.Header().Add("Content-Type", contentType)
+			if res.Header.Get("Content-Type") != "" {
+				w.Header().Add("Content-Type", res.Header.Get("Content-Type"))
 			}
-			contentEncoding := strings.Join(res.Header["Content-Encoding"], ",")
-			if contentEncoding != "" {
-				w.Header().Add("Content-Encoding", contentEncoding)
+			if res.Header.Get("Content-Encoding") != "" {
+				w.Header().Add("Content-Encoding", res.Header.Get("Content-Encoding"))
 			} else if strings.HasSuffix(path, ".gz") || strings.HasSuffix(path, ".bin") || strings.HasSuffix(path, ".pack") {
 				w.Header().Add("Content-Encoding", "gzip")
 			}
