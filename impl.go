@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"strings"
 	"github.com/modelhub/core/helper"
+	"strconv"
 )
 
 const (
@@ -356,6 +357,9 @@ func projectGetThumbnail(coreApi core.CoreApi, forUser string, session session.S
 		defer res.Body.Close()
 	}
 	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
+	if res.ContentLength >= 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
+	}
 	if err != nil {
 		return err
 	} else if _, err := io.Copy(w, res.Body); err != nil {
@@ -665,8 +669,8 @@ func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session se
 		w.Header().Set("Content-Type", res.Header.Get("Content-Type"))
 		w.Header().Set("Content-Disposition", "attachment")
 	}
-	if res.Header.Get("Content-Length") != "" {
-		w.Header().Set("Content-Length", res.Header.Get("Content-Length"))
+	if res.ContentLength >= 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
 	}
 
 	if err != nil {
@@ -689,6 +693,9 @@ func documentVersionGetThumbnail(coreApi core.CoreApi, forUser string, session s
 		defer res.Body.Close()
 	}
 	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
+	if res.ContentLength >= 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
+	}
 	if err != nil {
 		return err
 	} else if _, err := io.Copy(w, res.Body); err != nil {
@@ -741,6 +748,9 @@ func sheetGetItem(vada vada.VadaClient) handler {
 				w.Header().Set("Content-Encoding", res.Header.Get("Content-Encoding"))
 			} else if strings.HasSuffix(path, ".gz") || strings.HasSuffix(path, ".bin") || strings.HasSuffix(path, ".pack") {
 				w.Header().Set("Content-Encoding", "gzip")
+			}
+			if res.ContentLength >= 0 {
+				w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
 			}
 			_, err = io.Copy(w, res.Body)
 		}
