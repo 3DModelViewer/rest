@@ -102,7 +102,7 @@ func writeJson(w http.ResponseWriter, src interface{}, log golog.Log) {
 	if b, err := json.Marshal(src); err != nil {
 		writeError(w, err, log)
 	} else {
-		w.Header().Add("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(b)
 	}
 }
@@ -355,7 +355,7 @@ func projectGetThumbnail(coreApi core.CoreApi, forUser string, session session.S
 	if res, err = coreApi.Project().GetThumbnail(forUser, id); res != nil && res.Body != nil {
 		defer res.Body.Close()
 	}
-	w.Header().Add("Content-Type", mimeType+"/"+mimeSubtype)
+	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
 	if err != nil {
 		return err
 	} else if _, err := io.Copy(w, res.Body); err != nil {
@@ -660,13 +660,13 @@ func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session se
 	}
 
 	if len(pathSegments) == 8 {
-		w.Header().Add("Content-Type", pathSegments[6]+"/"+pathSegments[7])
+		w.Header().Set("Content-Type", pathSegments[6]+"/"+pathSegments[7])
 	} else {
-		w.Header().Add("Content-Type", res.Header.Get("Content-Type"))
-		w.Header().Add("Content-Disposition", "attachment")
+		w.Header().Set("Content-Type", res.Header.Get("Content-Type"))
+		w.Header().Set("Content-Disposition", "attachment")
 	}
 	if res.Header.Get("Content-Length") != "" {
-		w.Header().Add("Content-Length", res.Header.Get("Content-Length"))
+		w.Header().Set("Content-Length", res.Header.Get("Content-Length"))
 	}
 
 	if err != nil {
@@ -688,7 +688,7 @@ func documentVersionGetThumbnail(coreApi core.CoreApi, forUser string, session s
 	if res, err = coreApi.DocumentVersion().GetThumbnail(forUser, id); res != nil && res.Body != nil {
 		defer res.Body.Close()
 	}
-	w.Header().Add("Content-Type", mimeType+"/"+mimeSubtype)
+	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
 	if err != nil {
 		return err
 	} else if _, err := io.Copy(w, res.Body); err != nil {
@@ -735,12 +735,12 @@ func sheetGetItem(vada vada.VadaClient) handler {
 		if res != nil && res.Body != nil {
 			defer res.Body.Close()
 			if res.Header.Get("Content-Type") != "" {
-				w.Header().Add("Content-Type", res.Header.Get("Content-Type"))
+				w.Header().Set("Content-Type", res.Header.Get("Content-Type"))
 			}
 			if res.Header.Get("Content-Encoding") != "" {
-				w.Header().Add("Content-Encoding", res.Header.Get("Content-Encoding"))
+				w.Header().Set("Content-Encoding", res.Header.Get("Content-Encoding"))
 			} else if strings.HasSuffix(path, ".gz") || strings.HasSuffix(path, ".bin") || strings.HasSuffix(path, ".pack") {
-				w.Header().Add("Content-Encoding", "gzip")
+				w.Header().Set("Content-Encoding", "gzip")
 			}
 			_, err = io.Copy(w, res.Body)
 		}
