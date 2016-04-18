@@ -4,22 +4,22 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/modelhub/core"
+	"github.com/modelhub/core/documentversion"
+	"github.com/modelhub/core/helper"
+	"github.com/modelhub/core/project"
+	"github.com/modelhub/core/projectspaceversion"
+	"github.com/modelhub/core/sheet"
+	"github.com/modelhub/core/sheettransform"
+	"github.com/modelhub/core/treenode"
+	"github.com/modelhub/core/user"
 	"github.com/modelhub/session"
 	"github.com/modelhub/vada"
-	"github.com/modelhub/core/user"
-	"github.com/modelhub/core/project"
-	"github.com/modelhub/core/treenode"
-	"github.com/modelhub/core/documentversion"
-	"github.com/modelhub/core/sheet"
 	"github.com/robsix/golog"
+	sj "github.com/robsix/json"
 	"io"
 	"net/http"
-	"strings"
-	"github.com/modelhub/core/helper"
 	"strconv"
-	sj "github.com/robsix/json"
-	"github.com/modelhub/core/sheettransform"
-	"github.com/modelhub/core/projectspaceversion"
+	"strings"
 )
 
 const (
@@ -151,7 +151,7 @@ func writeOffsetJson(w http.ResponseWriter, res interface{}, totalResults int, l
 		res = []interface{}{}
 	}
 	writeJson(w, &struct {
-		TotalResults int `json:"totalResults"`
+		TotalResults int         `json:"totalResults"`
 		Results      interface{} `json:"results"`
 	}{
 		TotalResults: totalResults,
@@ -350,7 +350,7 @@ func projectGetRole(coreApi core.CoreApi, forUser string, session session.Sessio
 
 func projectGetMemberships(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id   string `json:"id"`
+		Id     string `json:"id"`
 		Role   string `json:"role"`
 		Offset int    `json:"offset"`
 		Limit  int    `json:"limit"`
@@ -368,7 +368,7 @@ func projectGetMemberships(coreApi core.CoreApi, forUser string, session session
 
 func projectGetMembershipInvites(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Id   string `json:"id"`
+		Id     string `json:"id"`
 		Role   string `json:"role"`
 		Offset int    `json:"offset"`
 		Limit  int    `json:"limit"`
@@ -762,9 +762,9 @@ func projectSpaceVersionGet(coreApi core.CoreApi, forUser string, session sessio
 func projectSpaceVersionGetForProjectSpace(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		ProjectSpace string `json:"projectSpace"`
-		Offset   int    `json:"offset"`
-		Limit    int    `json:"limit"`
-		SortBy   string `json:"sortBy"`
+		Offset       int    `json:"offset"`
+		Limit        int    `json:"limit"`
+		SortBy       string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
@@ -928,7 +928,7 @@ func sheetTransformGetForProjectSpaceVersion(coreApi core.CoreApi, forUser strin
 
 func helperGetChildrenDocumentsWithLatestVersionAndFirstSheetInfo(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Folder     string `json:"folder"`
+		Folder string `json:"folder"`
 		Offset int    `json:"offset"`
 		Limit  int    `json:"limit"`
 		SortBy string `json:"sortBy"`
@@ -945,10 +945,10 @@ func helperGetChildrenDocumentsWithLatestVersionAndFirstSheetInfo(coreApi core.C
 
 func helperGetDocumentVersionsWithFirstSheetInfo(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
-		Document     string `json:"document"`
-		Offset int    `json:"offset"`
-		Limit  int    `json:"limit"`
-		SortBy string `json:"sortBy"`
+		Document string `json:"document"`
+		Offset   int    `json:"offset"`
+		Limit    int    `json:"limit"`
+		SortBy   string `json:"sortBy"`
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
