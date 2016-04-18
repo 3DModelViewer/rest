@@ -895,6 +895,37 @@ func sheetProjectSearch(coreApi core.CoreApi, forUser string, session session.Se
 	}
 }
 
+func sheetTransformGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Ids []string `json:"ids"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.SheetTransform().Get(forUser, args.Ids); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func sheetTransformGetForProjectSpaceVersion(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		DocumentVersion string `json:"projectSpaceVersion"`
+		Offset          int    `json:"offset"`
+		Limit           int    `json:"limit"`
+		SortBy          string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Sheet().GetForDocumentVersion(forUser, args.DocumentVersion, args.Offset, args.Limit, sheet.SortBy(args.SortBy)); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
 func helperGetChildrenDocumentsWithLatestVersionAndFirstSheetInfo(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		Folder     string `json:"folder"`
