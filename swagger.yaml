@@ -801,6 +801,62 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /treeNode/createProjectSpace:
+    post:
+      summary: Create a new project space node.
+      description: |
+          Creates a new project space node with associated initial projectSpace version 1
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: parent
+          description: the parent node id
+          required: true
+          type: string
+        - in: formData
+          name: name
+          description: the project space name
+          required: true
+          type: string
+        - in: formData
+          name: createComment
+          description: the projectSpaceVersion create comment
+          required: false
+          type: string
+        - in: formData
+          name: sheetTransforms
+          description: the associated sheet transform json in string format
+          required: true
+          type: string
+        - in: formData
+          name: camera
+          description: the associated camera settings json in string format
+          required: true
+          type: string
+        - in: formData
+          name: thumbnail
+          description: thumbnail file
+          required: false
+          type: file
+        - in: formData
+          name: thumbnailType
+          description: thumbnail file mime type
+          required: false
+          type: string
+      tags:
+        - treeNode
+        - projectSpaceVersion
+      responses:
+        200:
+          schema:
+            $ref: '#/definitions/treeNode'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
   /treeNode/setName:
     post:
       summary: set the node name.
@@ -911,7 +967,7 @@ paths:
               nodeType:
                 type: string
                 description: The nodeType to filter on.
-                enum: ["any", "folder", "document", "viewerState"]
+                enum: ["any", "folder", "document", "projectSpace"]
               offset:
                 type: integer
                 description: The offset to start extracting results from.
@@ -992,7 +1048,7 @@ paths:
               nodeType:
                 type: string
                 description: The nodeType to filter on.
-                enum: ["any", "folder", "document", "viewerState"]
+                enum: ["any", "folder", "document", "projectSpace"]
               offset:
                 type: integer
                 description: The offset to start extracting results from.
@@ -1046,7 +1102,7 @@ paths:
               nodeType:
                 type: string
                 description: The nodeType to filter on.
-                enum: ["any", "folder", "document", "viewerState"]
+                enum: ["any", "folder", "document", "projectSpace"]
               offset:
                 type: integer
                 description: The offset to start extracting results from.
@@ -1255,6 +1311,158 @@ paths:
           required: true
       tags:
         - documentVersion
+      responses:
+        200:
+          description: Will contain the thumbnail image file
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /projectSpaceVersion/create:
+    post:
+      summary: Create a new projectSpace version.
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: projectSpace
+          description: the projectSpace to create a new version for
+          required: true
+          type: string
+        - in: formData
+          name: createComment
+          description: the projectSpaceVersion create comment
+          required: false
+          type: string
+        - in: formData
+          name: sheetTransforms
+          description: the associated sheet transform json in string format
+          required: true
+          type: string
+        - in: formData
+          name: camera
+          description: the associated camera settings json in string format
+          required: true
+          type: string
+        - in: formData
+          name: thumbnail
+          description: thumbnail file
+          required: false
+          type: file
+        - in: formData
+          name: thumbnailType
+          description: thumbnail file mime type
+          required: false
+          type: string
+      tags:
+        - projectSpaceVersion
+      responses:
+        200:
+          schema:
+            $ref: '#/definitions/projectSpaceVersion'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /projectSpaceVersion/get:
+    post:
+      summary: Get a list of projectSpaceVersions.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              ids:
+                type: array
+                items:
+                  type: string
+                maxItems: 100
+                description: The projectSpaceVersion ids to get.
+          required: true
+      tags:
+        - projectSpaceVersion
+      responses:
+        200:
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/projectSpaceVersion'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /projectSpaceVersion/getForProjectSpace:
+    post:
+      summary: Get a list of projectSpaceVersions for a given projectSpace.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              projectSpace:
+                type: string
+                description: The projectSpace id to get versions of.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["versionAsc", "versionDesc"]
+          required: true
+      tags:
+        - projectSpaceVersion
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items:
+                  $ref: '#/definitions/documentVersion'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
+  /projectSpaceVersion/getThumbnail/{id}/{type}/{subtype}:
+    get:
+      summary: Get projectSpace version thumbnail.
+      parameters:
+        - in: path
+          name: id
+          type: string
+          description: The projectSpaceVersion id
+          required: true
+        - in: path
+          name: type
+          type: string
+          description: The mime type type of the thumbnail
+          required: true
+        - in: path
+          name: subtype
+          type: string
+          description: The mime type subtype of the thumbnail
+          required: true
+      tags:
+        - projectSpaceVersion
       responses:
         200:
           description: Will contain the thumbnail image file
@@ -1485,6 +1693,82 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /sheetTransform/get:
+      post:
+        summary: Get a list of sheetTransforms.
+        consumes:
+          - application/json
+        produces:
+          - application/json
+        parameters:
+          - in: body
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 100
+                  description: The sheetTransform ids to get.
+            required: true
+        tags:
+          - sheetTransform
+        responses:
+          200:
+            schema:
+              type: array
+              items:
+                $ref: '#/definitions/sheetTransform'
+          default:
+            description: Unexpected error
+            schema:
+              $ref: '#/definitions/error'
+  /sheetTransform/getForProjectSpaceVersion:
+    post:
+      summary: Get a list of sheets for a given projectSpaceVersion.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              projectSpaceVersion:
+                type: string
+                description: The projectSpaceVersion id to get sheetTransforms of.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - sheetTransform
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items:
+                  $ref: '#/definitions/sheetTransform'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
   /helper/getChildrenDocumentsWithLatestVersionAndFirstSheetInfo:
     post:
       summary: Get a list of child document nodes with latest version data.
@@ -1659,7 +1943,7 @@ definitions:
       nodeType:
         type: string
         description: The nodes type
-        enum: ["folder", "document", "viewerState"]
+        enum: ["folder", "document", "projectSpace"]
       name:
         type: string
         description: The nodes name
@@ -1751,6 +2035,42 @@ definitions:
         type: string
         description: The translation status of the docVer
         enum: ["wont_register", "failed_to_register", "registered", "pending", "inprogress", "success", "failed"]
+      sheetCount:
+        type: integer
+        description: number of sheets associated with this project space version
+      thumbnailTypeType:
+        type: string
+        description: The thumbnail mime type (if there is a thumbnail)
+  projectSpaceVersion:
+    type: object
+    properties:
+      id:
+        type: string
+        description: The projectSpaceVersion id
+      projectSpace:
+        type: string
+        description: The projectSpace node id
+      version:
+        type: integer
+        description: The version number
+      project:
+        type: string
+        description: The project id
+      created:
+        type: string
+        description: The datetime when the projectSpaceVersion was created in RFC 3339 format
+      createComment:
+        type: string
+        description: The create comment
+      createdBy:
+        type: string
+        description: The modelhub id of the creating user
+      camera:
+        type: object
+        description: camera settings
+      sheetTransformCount:
+        type: integer
+        description: number of sheet transforms associated with this project space version
       thumbnailTypeType:
         type: string
         description: The thumbnail mime type (if there is a thumbnail)
@@ -1760,6 +2080,39 @@ definitions:
       id:
         type: string
         description: The sheet id
+      documentVersion:
+        type: string
+        description: The documentVersion id
+      project:
+        type: string
+        description: The project id
+      name:
+        type: string
+        description: The sheet name
+      thumbnails:
+        type: array
+        items:
+          type: string
+        description: The thumnail paths associated with the sheet
+      manifest:
+        type: string
+        description: The manifest path for the sheet (svf/f2d file)
+      role:
+        type: string
+        description: The role of the sheet
+        enum: ["2d", "3d"]
+  sheetTransform:
+    type: object
+    properties:
+      id:
+        type: string
+        description: The sheetTransform id
+      sheet:
+        type: string
+        description: The sheet id
+      transform:
+        type: object
+        description: The transform
       documentVersion:
         type: string
         description: The documentVersion id
