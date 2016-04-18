@@ -44,7 +44,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/project/getRole", handlerWrapper(coreApi, getSession, projectGetRole, log))
 	mux.HandleFunc("/api/v1/project/getMemberships", handlerWrapper(coreApi, getSession, projectGetMemberships, log))
 	mux.HandleFunc("/api/v1/project/getMembershipInvites", handlerWrapper(coreApi, getSession, projectGetMembershipInvites, log))
-	mux.HandleFunc("/api/v1/project/getThumbnail/", handlerWrapper(coreApi, getSession, projectGetThumbnail, log))
+	mux.HandleFunc("/api/v1/project/getThumbnail/", getThumbnailWrapper(coreApi.Project().GetThumbnail, getSession, log))
 	mux.HandleFunc("/api/v1/project/get", handlerWrapper(coreApi, getSession, projectGet, log))
 	mux.HandleFunc("/api/v1/project/getInUserContext", handlerWrapper(coreApi, getSession, projectGetInUserContext, log))
 	mux.HandleFunc("/api/v1/project/getInUserInviteContext", handlerWrapper(coreApi, getSession, projectGetInUserInviteContext, log))
@@ -65,12 +65,12 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/documentVersion/get", handlerWrapper(coreApi, getSession, documentVersionGet, log))
 	mux.HandleFunc("/api/v1/documentVersion/getForDocument", handlerWrapper(coreApi, getSession, documentVersionGetForDocument, log))
 	mux.HandleFunc("/api/v1/documentVersion/getSeedFile/", handlerWrapper(coreApi, getSession, documentVersionGetSeedFile, log))
-	mux.HandleFunc("/api/v1/documentVersion/getThumbnail/", handlerWrapper(coreApi, getSession, documentVersionGetThumbnail, log))
+	mux.HandleFunc("/api/v1/documentVersion/getThumbnail/", getThumbnailWrapper(coreApi.DocumentVersion().GetThumbnail, getSession, log))
 	//projectSpaceVersion
 	mux.HandleFunc("/api/v1/projectSpaceVersion/create", handlerWrapper(coreApi, getSession, projectSpaceVersionCreate, log))
 	mux.HandleFunc("/api/v1/projectSpaceVersion/get", handlerWrapper(coreApi, getSession, projectSpaceVersionGet, log))
 	mux.HandleFunc("/api/v1/projectSpaceVersion/getForProjectSpace", handlerWrapper(coreApi, getSession, projectSpaceVersionGetForProjectSpace, log))
-	mux.HandleFunc("/api/v1/projectSpaceVersion/getThumbnail/", handlerWrapper(coreApi, getSession, projectSpaceVersionGetThumbnail, log))
+	mux.HandleFunc("/api/v1/projectSpaceVersion/getThumbnail/", getThumbnailWrapper(coreApi.ProjectSpaceVersion().GetThumbnail, getSession, log))
 	//sheet
 	mux.HandleFunc("/api/v1/sheet/setName", handlerWrapper(coreApi, getSession, sheetSetName, log))
 	mux.HandleFunc(sheetGetItemPath, handlerWrapper(coreApi, getSession, sheetGetItem(vada), log))
@@ -109,7 +109,33 @@ func handlerWrapper(coreApi core.CoreApi, getSession session.SessionGetter, hand
 	}
 }
 
+func getThumbnailWrapper(getThumbnail getThumbnail, getSession session.SessionGetter, log golog.Log) http.HandlerFunc {
+	return handlerWrapper(nil, getSession, func(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+		pathSegments := strings.Split(r.URL.Path, "/")
+		id := pathSegments[len(pathSegments)-3]
+		mimeType := pathSegments[len(pathSegments)-2]
+		mimeSubtype := pathSegments[len(pathSegments)-1]
+		var res *http.Response
+		var err error
+		if res, err = getThumbnail(forUser, id); res != nil && res.Body != nil {
+			defer res.Body.Close()
+		}
+		w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
+		if res.ContentLength >= 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
+		}
+		if err != nil {
+			return err
+		} else if _, err := io.Copy(w, res.Body); err != nil {
+			return err
+		} else {
+			return nil
+		}
+	}, log)
+}
+
 type handler func(core.CoreApi, string, session.Session, http.ResponseWriter, *http.Request, golog.Log) error
+type getThumbnail func(forUser string, id string) (*http.Response, error)
 
 func writeJson(w http.ResponseWriter, src interface{}, log golog.Log) {
 	if b, err := json.Marshal(src); err != nil {
@@ -354,29 +380,6 @@ func projectGetMembershipInvites(coreApi core.CoreApi, forUser string, session s
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
-		return nil
-	}
-}
-
-func projectGetThumbnail(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	pathSegments := strings.Split(r.URL.Path, "/")
-	id := pathSegments[len(pathSegments)-3]
-	mimeType := pathSegments[len(pathSegments)-2]
-	mimeSubtype := pathSegments[len(pathSegments)-1]
-	var res *http.Response
-	var err error
-	if res, err = coreApi.Project().GetThumbnail(forUser, id); res != nil && res.Body != nil {
-		defer res.Body.Close()
-	}
-	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
-	if res.ContentLength >= 0 {
-		w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
-	}
-	if err != nil {
-		return err
-	} else if _, err := io.Copy(w, res.Body); err != nil {
-		return err
-	} else {
 		return nil
 	}
 }
@@ -718,29 +721,6 @@ func documentVersionGetSeedFile(coreApi core.CoreApi, forUser string, session se
 	}
 }
 
-func documentVersionGetThumbnail(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	pathSegments := strings.Split(r.URL.Path, "/")
-	id := pathSegments[len(pathSegments)-3]
-	mimeType := pathSegments[len(pathSegments)-2]
-	mimeSubtype := pathSegments[len(pathSegments)-1]
-	var res *http.Response
-	var err error
-	if res, err = coreApi.DocumentVersion().GetThumbnail(forUser, id); res != nil && res.Body != nil {
-		defer res.Body.Close()
-	}
-	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
-	if res.ContentLength >= 0 {
-		w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
-	}
-	if err != nil {
-		return err
-	} else if _, err := io.Copy(w, res.Body); err != nil {
-		return err
-	} else {
-		return nil
-	}
-}
-
 func projectSpaceVersionCreate(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	thumbnail, _, err := r.FormFile("thumbnail")
 	if thumbnail != nil {
@@ -792,29 +772,6 @@ func projectSpaceVersionGetForProjectSpace(coreApi core.CoreApi, forUser string,
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
-		return nil
-	}
-}
-
-func projectSpaceVersionGetThumbnail(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
-	pathSegments := strings.Split(r.URL.Path, "/")
-	id := pathSegments[len(pathSegments)-3]
-	mimeType := pathSegments[len(pathSegments)-2]
-	mimeSubtype := pathSegments[len(pathSegments)-1]
-	var res *http.Response
-	var err error
-	if res, err = coreApi.ProjectSpaceVersion().GetThumbnail(forUser, id); res != nil && res.Body != nil {
-		defer res.Body.Close()
-	}
-	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
-	if res.ContentLength >= 0 {
-		w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
-	}
-	if err != nil {
-		return err
-	} else if _, err := io.Copy(w, res.Body); err != nil {
-		return err
-	} else {
 		return nil
 	}
 }
