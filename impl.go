@@ -17,6 +17,9 @@ import (
 	"strings"
 	"github.com/modelhub/core/helper"
 	"strconv"
+	sj "github.com/robsix/json"
+	"github.com/modelhub/core/sheettransform"
+	"github.com/modelhub/core/projectspaceversion"
 )
 
 const (
@@ -49,6 +52,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	//treeNode
 	mux.HandleFunc("/api/v1/treeNode/createFolder", handlerWrapper(coreApi, getSession, treeNodeCreateFolder, log))
 	mux.HandleFunc("/api/v1/treeNode/createDocument", handlerWrapper(coreApi, getSession, treeNodeCreateDocument, log))
+	mux.HandleFunc("/api/v1/treeNode/createProjectSpace", handlerWrapper(coreApi, getSession, treeNodeCreateProjectSpace, log))
 	mux.HandleFunc("/api/v1/treeNode/setName", handlerWrapper(coreApi, getSession, treeNodeSetName, log))
 	mux.HandleFunc("/api/v1/treeNode/move", handlerWrapper(coreApi, getSession, treeNodeMove, log))
 	mux.HandleFunc("/api/v1/treeNode/get", handlerWrapper(coreApi, getSession, treeNodeGet, log))
@@ -62,6 +66,11 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/documentVersion/getForDocument", handlerWrapper(coreApi, getSession, documentVersionGetForDocument, log))
 	mux.HandleFunc("/api/v1/documentVersion/getSeedFile/", handlerWrapper(coreApi, getSession, documentVersionGetSeedFile, log))
 	mux.HandleFunc("/api/v1/documentVersion/getThumbnail/", handlerWrapper(coreApi, getSession, documentVersionGetThumbnail, log))
+	//projectSpaceVersion
+	mux.HandleFunc("/api/v1/projectSpaceVersion/create", handlerWrapper(coreApi, getSession, projectSpaceVersionCreate, log))
+	mux.HandleFunc("/api/v1/projectSpaceVersion/get", handlerWrapper(coreApi, getSession, projectSpaceVersionGet, log))
+	mux.HandleFunc("/api/v1/projectSpaceVersion/getForProjectSpace", handlerWrapper(coreApi, getSession, projectSpaceVersionGetForProjectSpace, log))
+	mux.HandleFunc("/api/v1/projectSpaceVersion/getThumbnail/", handlerWrapper(coreApi, getSession, projectSpaceVersionGetThumbnail, log))
 	//sheet
 	mux.HandleFunc("/api/v1/sheet/setName", handlerWrapper(coreApi, getSession, sheetSetName, log))
 	mux.HandleFunc(sheetGetItemPath, handlerWrapper(coreApi, getSession, sheetGetItem(vada), log))
@@ -69,6 +78,9 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	mux.HandleFunc("/api/v1/sheet/getForDocumentVersion", handlerWrapper(coreApi, getSession, sheetGetForDocumentVersion, log))
 	mux.HandleFunc("/api/v1/sheet/globalSearch", handlerWrapper(coreApi, getSession, sheetGlobalSearch, log))
 	mux.HandleFunc("/api/v1/sheet/projectSearch", handlerWrapper(coreApi, getSession, sheetProjectSearch, log))
+	//sheetTransform
+	mux.HandleFunc("/api/v1/sheetTransform/get", handlerWrapper(coreApi, getSession, sheetTransformGet, log))
+	mux.HandleFunc("/api/v1/sheetTransform/getForProjectSpaceVersion", handlerWrapper(coreApi, getSession, sheetTransformGetForProjectSpaceVersion, log))
 	//helpers
 	mux.HandleFunc("/api/v1/helper/getChildrenDocumentsWithLatestVersionAndFirstSheetInfo", handlerWrapper(coreApi, getSession, helperGetChildrenDocumentsWithLatestVersionAndFirstSheetInfo, log))
 	mux.HandleFunc("/api/v1/helper/getDocumentVersionsWithFirstSheetInfo", handlerWrapper(coreApi, getSession, helperGetDocumentVersionsWithFirstSheetInfo, log))
@@ -480,6 +492,30 @@ func treeNodeCreateDocument(coreApi core.CoreApi, forUser string, session sessio
 	}
 }
 
+func treeNodeCreateProjectSpace(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	thumbnail, _, err := r.FormFile("thumbnail")
+	if thumbnail != nil {
+		defer thumbnail.Close()
+	}
+	if err != nil && err != http.ErrMissingFile {
+		return err
+	}
+
+	camera, _ := sj.FromString(r.FormValue("camera"))
+
+	sheetTransforms := make([]*sheettransform.SheetTransform, 0, 100)
+	if err := json.Unmarshal([]byte(r.FormValue("sheetTransforms")), &sheetTransforms); err != nil {
+		return err
+	}
+
+	if res, err := coreApi.TreeNode().CreateProjectSpace(forUser, r.FormValue("parent"), r.FormValue("name"), r.FormValue("createComment"), sheetTransforms, camera, r.FormValue("thumbnailType"), thumbnail); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
 func treeNodeSetName(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
 	args := &struct {
 		Id   string `json:"id"`
@@ -690,6 +726,84 @@ func documentVersionGetThumbnail(coreApi core.CoreApi, forUser string, session s
 	var res *http.Response
 	var err error
 	if res, err = coreApi.DocumentVersion().GetThumbnail(forUser, id); res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
+	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
+	if res.ContentLength >= 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
+	}
+	if err != nil {
+		return err
+	} else if _, err := io.Copy(w, res.Body); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func projectSpaceVersionCreate(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	thumbnail, _, err := r.FormFile("thumbnail")
+	if thumbnail != nil {
+		defer thumbnail.Close()
+	}
+	if err != nil && err != http.ErrMissingFile {
+		return err
+	}
+
+	camera, _ := sj.FromString(r.FormValue("camera"))
+
+	sheetTransforms := make([]*sheettransform.SheetTransform, 0, 100)
+	if err := json.Unmarshal([]byte(r.FormValue("sheetTransforms")), &sheetTransforms); err != nil {
+		return err
+	}
+
+	if res, err := coreApi.ProjectSpaceVersion().Create(forUser, r.FormValue("projectSpace"), r.FormValue("createComment"), sheetTransforms, camera, r.FormValue("thumbnailType"), thumbnail); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func projectSpaceVersionGet(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Ids []string `json:"ids"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, err := coreApi.ProjectSpaceVersion().Get(forUser, args.Ids); err != nil {
+		return err
+	} else {
+		writeJson(w, res, log)
+		return nil
+	}
+}
+
+func projectSpaceVersionGetForProjectSpace(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		ProjectSpace string `json:"projectSpace"`
+		Offset   int    `json:"offset"`
+		Limit    int    `json:"limit"`
+		SortBy   string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.ProjectSpaceVersion().GetForProjectSpace(forUser, args.ProjectSpace, args.Offset, args.Limit, projectspaceversion.SortBy(args.SortBy)); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func projectSpaceVersionGetThumbnail(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	pathSegments := strings.Split(r.URL.Path, "/")
+	id := pathSegments[len(pathSegments)-3]
+	mimeType := pathSegments[len(pathSegments)-2]
+	mimeSubtype := pathSegments[len(pathSegments)-1]
+	var res *http.Response
+	var err error
+	if res, err = coreApi.ProjectSpaceVersion().GetThumbnail(forUser, id); res != nil && res.Body != nil {
 		defer res.Body.Close()
 	}
 	w.Header().Set("Content-Type", mimeType+"/"+mimeSubtype)
