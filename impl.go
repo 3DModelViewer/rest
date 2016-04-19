@@ -84,6 +84,7 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	//helpers
 	mux.HandleFunc("/api/v1/helper/getChildrenDocumentsWithLatestVersionAndFirstSheetInfo", handlerWrapper(coreApi, getSession, helperGetChildrenDocumentsWithLatestVersionAndFirstSheetInfo, log))
 	mux.HandleFunc("/api/v1/helper/getDocumentVersionsWithFirstSheetInfo", handlerWrapper(coreApi, getSession, helperGetDocumentVersionsWithFirstSheetInfo, log))
+	mux.HandleFunc("/api/v1/helper/getChildrenProjectSpacesWithLatestVersion", handlerWrapper(coreApi, getSession, helperGetChildrenProjectSpacesWithLatestVersion, log))
 
 	return mux
 }
@@ -953,6 +954,23 @@ func helperGetDocumentVersionsWithFirstSheetInfo(coreApi core.CoreApi, forUser s
 	if err := readJson(r, args); err != nil {
 		return err
 	} else if res, totalResults, err := coreApi.Helper().GetDocumentVersionsWithFirstSheetInfo(forUser, args.Document, args.Offset, args.Limit, helper.SortBy(args.SortBy)); err != nil {
+		return err
+	} else {
+		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func helperGetChildrenProjectSpacesWithLatestVersion(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		Folder string `json:"folder"`
+		Offset int    `json:"offset"`
+		Limit  int    `json:"limit"`
+		SortBy string `json:"sortBy"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, totalResults, err := coreApi.Helper().GetChildrenProjectSpacesWithLatestVersion(forUser, args.Folder, args.Offset, args.Limit, helper.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)

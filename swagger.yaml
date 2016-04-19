@@ -1864,6 +1864,53 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/error'
+  /helper/getChildrenProjectSpacesWithLatestVersion:
+    post:
+      summary: Get a list of child projectSpace nodes with latest version data.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          schema:
+            type: object
+            properties:
+              folder:
+                type: string
+                description: The folder id to get children of.
+              offset:
+                type: integer
+                description: The offset to start extracting results from.
+              limit:
+                type: integer
+                description: The maximum number of results to return.
+              sortBy:
+                type: string
+                description: sort by field.
+                enum: ["nameAsc", "nameDesc"]
+          required: true
+      tags:
+        - helper
+        - treeNode
+        - projectSpaceVersion
+      responses:
+        200:
+          schema:
+            type: object
+            properties:
+              totalResults:
+                type: integer
+                description: The total number of results found in the query
+              results:
+                type: array
+                description: The extracted results given the initial query/filter/offset/limit/sortBy
+                items:
+                  $ref: '#/definitions/ProjectSpaceVersion'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/error'
 definitions:
   user:
     type: object
