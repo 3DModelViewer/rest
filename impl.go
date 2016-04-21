@@ -919,7 +919,7 @@ func sheetTransformGetForProjectSpaceVersion(coreApi core.CoreApi, forUser strin
 	}{}
 	if err := readJson(r, args); err != nil {
 		return err
-	} else if res, totalResults, err := coreApi.Sheet().GetForDocumentVersion(forUser, args.DocumentVersion, args.Offset, args.Limit, sheet.SortBy(args.SortBy)); err != nil {
+	} else if res, totalResults, err := coreApi.SheetTransform().GetForProjectSpaceVersion(forUser, args.DocumentVersion, args.Offset, args.Limit, sheettransform.SortBy(args.SortBy)); err != nil {
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
