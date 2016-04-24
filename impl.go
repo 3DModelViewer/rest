@@ -81,6 +81,8 @@ func NewRestApi(coreApi core.CoreApi, getSession session.SessionGetter, vada vad
 	//sheetTransform
 	mux.HandleFunc("/api/v1/sheetTransform/get", handlerWrapper(coreApi, getSession, sheetTransformGet, log))
 	mux.HandleFunc("/api/v1/sheetTransform/getForProjectSpaceVersion", handlerWrapper(coreApi, getSession, sheetTransformGetForProjectSpaceVersion, log))
+	//clashTest
+	mux.HandleFunc("/api/v1/clashTest/getForSheetTransforms", handlerWrapper(coreApi, getSession, clashTestGetForSheetTransforms, log))
 	//helpers
 	mux.HandleFunc("/api/v1/helper/getChildrenDocumentsWithLatestVersionAndFirstSheetInfo", handlerWrapper(coreApi, getSession, helperGetChildrenDocumentsWithLatestVersionAndFirstSheetInfo, log))
 	mux.HandleFunc("/api/v1/helper/getDocumentVersionsWithFirstSheetInfo", handlerWrapper(coreApi, getSession, helperGetDocumentVersionsWithFirstSheetInfo, log))
@@ -923,6 +925,23 @@ func sheetTransformGetForProjectSpaceVersion(coreApi core.CoreApi, forUser strin
 		return err
 	} else {
 		writeOffsetJson(w, res, totalResults, log)
+		return nil
+	}
+}
+
+func clashTestGetForSheetTransforms(coreApi core.CoreApi, forUser string, session session.Session, w http.ResponseWriter, r *http.Request, log golog.Log) error {
+	args := &struct {
+		LeftSheetTransform  string `json:"leftSheetTransform"`
+		RightSheetTransform string `json:"rightSheetTransform"`
+	}{}
+	if err := readJson(r, args); err != nil {
+		return err
+	} else if res, exists, err := coreApi.ClashTest().GetForSheetTransforms(forUser, args.LeftSheetTransform, args.RightSheetTransform); err != nil {
+		return err
+	} else if !exists {
+		return errors.New("No clash test exists for given sheet transforms")
+	} else {
+		writeJson(w, res, log)
 		return nil
 	}
 }
